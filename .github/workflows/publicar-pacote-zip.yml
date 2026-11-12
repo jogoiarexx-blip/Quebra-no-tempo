@@ -13,7 +13,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: 'quebra-no-tempo-pages'
+  group: publicar-quebra-no-tempo
   cancel-in-progress: false
 
 jobs:
@@ -36,12 +36,12 @@ jobs:
           set -euo pipefail
           arquivo="$(find . -maxdepth 1 -type f -name 'QUEBRA_NO_TEMPO_v*.zip' | sort -V | tail -n 1)"
           if [[ -z "$arquivo" ]]; then
-            echo 'Nenhum QUEBRA_NO_TEMPO_v*.zip na raiz do repositorio.' >&2
+            echo 'Envie um arquivo QUEBRA_NO_TEMPO_v*.zip para a raiz da branch main.' >&2
             exit 1
           fi
           unzip -tq "$arquivo"
           if unzip -Z -1 "$arquivo" | grep -E '(^/|(^|/)\.\.(/|$))'; then
-            echo 'ZIP possui caminho inseguro.' >&2
+            echo 'Arquivo ZIP com caminho inseguro.' >&2
             exit 1
           fi
           mkdir -p "$RUNNER_TEMP/qnt-extraido" "$RUNNER_TEMP/qnt-site"
@@ -51,16 +51,29 @@ jobs:
             origem="$RUNNER_TEMP/qnt-extraido"
           fi
           for arquivo_obrigatorio in index.html src/main.js src/missions/a1m1.js src/missions/a1m2.js vendor/three/three.module.min.js models/gael.glb models/sol.glb; do
-            test -f "$origem/$arquivo_obrigatorio" || { echo "Faltou $arquivo_obrigatorio" >&2; exit 1; }
+            test -f "$origem/$arquivo_obrigatorio" || { echo "Falta $arquivo_obrigatorio no pacote." >&2; exit 1; }
           done
-          grep -q 'type="importmap"' "$origem/index.html"
+          grep -q 'type="importmap"' "$origem/index.html" || { echo 'Importmap do Three.js ausente.' >&2; exit 1; }
           cp -a "$origem"/. "$RUNNER_TEMP/qnt-site/"
           echo "SITE_ORIGEM=$origem" >> "$GITHUB_ENV"
 
-      - name: Atualizar codigo fonte na main
+      - name: Preparar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Preparar arquivos do site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/qnt-site
+
+      - name: Publicar site
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Atualizar codigo-fonte no repositorio
         shell: bash
         run: |
           set -euo pipefail
+          # Somente apos deploy valido: preserva historico, workflows, CNAME e .nojekyll.
           while IFS= read -r -d '' antigo; do
             case "$antigo" in
               .github/*|CNAME|.nojekyll) ;;
@@ -70,23 +83,6 @@ jobs:
           cp -a "$SITE_ORIGEM"/. ./
           git add -A
           if ! git diff --cached --quiet; then
-            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'feat: publicar pacote Quebra no Tempo atualizado'
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'feat: publicar Quebra no Tempo v0.2.0'
             git push origin HEAD:main
           fi
-
-      - name: Definir GitHub Pages via Actions
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh api --method PUT "repos/$GITHUB_REPOSITORY/pages" -f build_type=workflow
-
-      - name: Preparar Pages
-        uses: actions/configure-pages@v5
-
-      - name: Carregar arquivos do jogo
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ${{ runner.temp }}/qnt-site
-
-      - name: Publicar Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
