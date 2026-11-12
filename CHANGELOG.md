@@ -1,3 +1,12 @@
+# v0.6.1 — 12/11/2026
+
+- Jill substitui o atendente no ponto original do balcão. Objetivo, conversa e indicação da entrada usam Jill; a flag antiga permanece para compatibilidade com saves.
+- Modelos otimizados já existentes mantidos: Jill 2,33 MB; reptiliano E01 1,65 MB, 20 mil triângulos. Anexos comparados por SHA-256.
+- Cada recurso tem silhueta e símbolo próprios: maleta médica, balas 9 mm, cartuchos, colete, engrenagem e espingarda. Buffers compartilhados e partes mescladas por material.
+- Loot ponderado pela necessidade de vida, munição e proteção. Atirador fornece mais 9 mm; drones fornecem peças. Cartuchos só entram no sorteio após adquirir a espingarda.
+- Drops pousam na superfície abaixo do inimigo, flutuam e giram. Limite de 24 drops transitórios. Feedback de coleta mostra o ganho real; atributos cheios preservam itens no chão.
+- Testes de regras e malhas, mais smoke WebGL de conversa, apagão, checkpoint, coleta e combate.
+
 # v0.6.0 — 12/11/2026
 
 Jill adicionada atrás do balcão da boate, preservando Basso e a missão. Reptiliano substitui o E01 nas duas fases. Jill: 16,06 → 2,33 MB; reptiliano: 12,00 → 1,65 MB e 108.498 → 20.000 triângulos. Animações adaptadas aos rigs, texturas WebP e testes do elenco incluídos. [Detalhes](docs/ELENCO_OTIMIZADO_v0_6_0.md).

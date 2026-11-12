@@ -4,6 +4,9 @@ import * as THREE from 'three';
 import { G, CFG, DIFF } from './state.js';
 import { input, initInput, requestLock, releaseLock, hit, pollPad, endFrame, resetInput } from './input.js';
 import { updateLights, building } from './world.js';
+import { raycast } from './physics.js';
+import { PICKUPS, createPickupMesh, disposePickupAssets } from './pickups.js';
+import { applyResourcePickup, chooseEnemyDrop } from './loot.js';
 import { loadCharacters } from './characters.js';
 import { initTouch } from './touch.js';
 import { NPC } from './npcs.js';
@@ -80,14 +83,12 @@ function applyQuality() {
 addEventListener('resize', applyQuality);
 
 let L = null, mission = null, gate, portal, sealFx, pickupMeshes = {}, drops = [], doorAnim = {};
-const PICK_COL = { ammo9: 0xffb030, shells: 0xff5a30, medkit: 0x4dff88, armor: 0x35e6ff, pecas: 0xd0a0ff, weapon_trovao: 0xffffff };
 function makePickupMesh(type) {
-  const g = new THREE.Group(), c = PICK_COL[type];
-  if (type === 'weapon_trovao') { g.add(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.9), new THREE.MeshLambertMaterial({ color: 0x8a9099 })), new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.34).translate(0, -0.03, -0.4), new THREE.MeshLambertMaterial({ color: 0x6b4526 }))); g.rotation.y = 1.2; }
-  else g.add(new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.24), new THREE.MeshLambertMaterial({ color: 0x20242b })), new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.06, 0.26), new THREE.MeshBasicMaterial({ color: c })));
-  const halo = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.36, 20), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.6, side: THREE.DoubleSide })); halo.rotation.x = -Math.PI / 2; halo.position.y = -0.2; g.add(halo);
-  (L ? L.root : scene).add(g); return g;
+  const mesh = createPickupMesh(type);
+  (L ? L.root : scene).add(mesh);
+  return mesh;
 }
+const resourceLimits = () => ({ maxHealth: CFG.player.maxHealth, maxArmor: CFG.player.maxArmor, ammoCaps: AMMO_CAP, res: (DIFF[G.settings.difficulty] || DIFF.mercenario).res });
 
 // ------------------------------------------------------------------ estado da missão
 const newS = (m) => ({ missionId: m.id, flags: {}, seals: [], pickups: [], groupsDone: [], destroyed: [], oneShots: [], archives: [], secrets: [], checkpointId: 'cp00', pecas: 0, exitGateInteracted: false,
@@ -145,6 +146,7 @@ function loadMission(id) {
   if (mission && mission.id === id && L) return;
   enemies.clear();
   if (L) { L.dispose(); }
+  disposePickupAssets();
   pickupMeshes = {}; drops = []; doorAnim = {};
   mission = MISSIONS[id]; G.mission = mission;
   L = mission.build(scene, X); G.level = L; L.npcs = L.npcs || [];
@@ -210,10 +212,14 @@ G.hooks.toast = toast;
 G.hooks.onDeath = () => { deathT = 0; G.S.stats.deaths++; };
 G.hooks.hitMarker = (head, kill) => { const e = $('hitm'); e.style.color = kill ? '#ff3048' : head ? '#ffb030' : '#fff'; e.style.opacity = 1; e.style.transition = 'none'; requestAnimationFrame(() => { e.style.transition = 'opacity .25s'; e.style.opacity = 0; }); };
 G.hooks.onEnemyKilled = (e) => {
-  if (e.type === 'DRONE' || Math.random() > 0.5 * DIFF[G.settings.difficulty].res) return;
-  const type = P.weapons.trovao_duplo.have && Math.random() < 0.35 ? 'shells' : P.hp < 45 && Math.random() < 0.5 ? 'medkit' : 'ammo9';
-  const pos = e.body.pos.clone(); pos.y += 0.35; const mesh = makePickupMesh(type); mesh.position.copy(pos);
-  drops.push({ type, amount: type === 'shells' ? 2 : type === 'medkit' ? 20 : 12, pos, mesh });
+  const drop = chooseEnemyDrop(e.type, P, resourceLimits());
+  if (!drop) return;
+  const pos = e.body.pos.clone();
+  const ground = raycast(pos.x, pos.y + .25, pos.z, 0, -1, 0, 100, c => !c.noBody);
+  pos.y = ground ? pos.y + .25 - ground.t + .35 : pos.y + .35;
+  const mesh = makePickupMesh(drop.type); mesh.position.copy(pos);
+  if (drops.length >= 24) drops.shift().mesh.removeFromParent();
+  drops.push({ ...drop, pos, mesh });
 };
 G.hooks.onShootCollider = (c, dmg, point) => {
   if (c.barrel && dmg > 0) { const b = L.barrels.find((x) => x.id === c.barrel); if (b && b.alive) { b.hp -= dmg; if (b.hp <= 0) explodeBarrel(b); } }
@@ -222,12 +228,14 @@ G.hooks.onShootCollider = (c, dmg, point) => {
 function explodeBarrel(b) { b.alive = false; b.mesh.visible = false; b.col.enabled = false; G.S.destroyed.push(b.id); enemies.explode(b.pos, mission.barrelRadius ? mission.barrelRadius(b.id) : 5.5, 130); }
 
 function collect(type, amount) {
-  const res = DIFF[G.settings.difficulty].res;
-  if (type === 'ammo9' || type === 'shells') { if (P.ammo[type] >= AMMO_CAP[type]) return false; P.ammo[type] = Math.min(AMMO_CAP[type], P.ammo[type] + Math.round(amount * res)); toast(type === 'ammo9' ? `+ MUNIÇÃO 9 mm` : `+ CARTUCHOS`, 1.2); }
-  else if (type === 'medkit') { if (P.hp >= CFG.player.maxHealth) return false; P.hp = Math.min(CFG.player.maxHealth, P.hp + amount); toast('+ KIT MÉDICO', 1.2); }
-  else if (type === 'armor') { if (P.armor >= CFG.player.maxArmor) return false; P.armor = Math.min(CFG.player.maxArmor, P.armor + amount); toast('+ ARMADURA', 1.2); }
+  if (['ammo9', 'shells', 'medkit', 'armor'].includes(type)) {
+    const gain = applyResourcePickup(P, type, amount, resourceLimits());
+    if (!gain) return false;
+    toast(`+${Math.ceil(gain)} ${PICKUPS[type].label}`, 1.3);
+  }
   else if (type === 'pecas') { G.S.pecas += amount; toast(`+ ${amount} PEÇAS CRONAIS`, 1.6); }
   else if (type === 'weapon_trovao') { giveWeapon('trovao_duplo'); P.ammo.shells = Math.min(AMMO_CAP.shells, P.ammo.shells + 4); toast('TROVÃO DUPLO ADQUIRIDA • tecla 2', 2.6); say('GAEL', 'Dois canos, zero sutileza. Agora sim a noite ficou educada.'); }
+  else return false;
   sfx.pickup(); return true;
 }
 
@@ -351,7 +359,7 @@ function frameUpdate(dt, sim) {
   G.playerPos = P.body.pos;
   for (const n of L.npcs) n.update(sim || ui.mode !== 'play' ? dt : 0, camera.position);
   for (const pk of L.pickups) { const m = pickupMeshes[pk.id]; if (m.visible) { m.position.y = pk.pos.y + Math.sin(t * 2.5 + pk.pos.x) * 0.06; m.rotation.y += dt * 1.2; } }
-  for (const d of drops) d.mesh.rotation.y += dt * 1.2;
+  for (const d of drops) { d.mesh.rotation.y += dt * 1.2; d.mesh.position.y = d.pos.y + Math.sin(t * 2.5 + d.pos.x) * .06; }
   if (sealFx.life > 0) { sealFx.life -= dt; sealFx.group.position.y += dt * 0.5; sealFx.group.scale.setScalar(Math.min(1, sealFx.life)); if (sealFx.life <= 0) sealFx.group.visible = false; }
   gate.stable = ui.mode === 'play' && gateStable();
   if (ui.mode === 'play') {
@@ -423,5 +431,5 @@ async function boot() {
   requestAnimationFrame(frame);
 }
 // ganchos de teste/QA (console): window.QNT
-window.QNT = { G, P, updateCamera, enemies, ui, input, X, restartCheckpoint, get L() { return L; }, get mission() { return mission; }, get gate() { return gate; }, get store() { return store; }, startMission, loadMission, saveCheckpoint, grantSeal, gateStable, setSimulateSaveFailure, tick, back, objective: () => mission.objective(X), interactables, collect };
+window.QNT = { G, P, updateCamera, enemies, ui, input, X, restartCheckpoint, get L() { return L; }, get mission() { return mission; }, get gate() { return gate; }, get store() { return store; }, startMission, loadMission, saveCheckpoint, grantSeal, gateStable, setSimulateSaveFailure, tick, back, objective: () => mission.objective(X), interactables, collect, get drops() { return drops; }, get pickupMeshes() { return pickupMeshes; } };
 boot().catch((e) => { $('bootT').textContent = 'ERRO AO CARREGAR: ' + e.message; console.error(e); });

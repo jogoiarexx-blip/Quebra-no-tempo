@@ -125,7 +125,7 @@ export function createBuilder(scene) {
   L.dispose = () => {
     root.removeFromParent();
     root.traverse((o) => {
-      if (o.isSkinnedMesh) return;                       // geometria compartilhada dos personagens
+      if (o.isSkinnedMesh || o.userData.pickupShared) return;                       // personagens e recursos têm descarte próprio
       if (o.geometry) o.geometry.dispose();
       if (o.material && !Object.values(M).includes(o.material)) { const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) { if (m.map && !Object.values(M).some((x) => x.map === m.map)) m.map.dispose(); m.dispose(); } }
     });

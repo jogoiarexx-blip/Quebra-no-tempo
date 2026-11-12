@@ -33,6 +33,13 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Verificar carregamento WebGL das duas missões
         run: node tools/browser-smoke.mjs
+      - name: Guardar capturas de QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qnt-v061-qa
+          path: qa/screenshots/
+          retention-days: 7
       - name: Preparar arquivos estáticos
         run: |
           mkdir -p "$RUNNER_TEMP/qnt-site"

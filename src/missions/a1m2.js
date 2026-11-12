@@ -234,8 +234,7 @@ function build(scene, X) {
   L.checkpoints = { cp00: { x: 0, y: 0.01, z: 2, yaw: 0 }, cp00i: { x: 12.4, y: 2.41, z: 45.5, yaw: -Math.PI / 2 }, cp01: { x: 0, y: 0.01, z: 30, yaw: 0 }, cp02: { x: -12, y: -8.99, z: 62, yaw: 0, force: true } };
 
   // ---------------- NPCs: equipe, público e performers (mesmos 2 modelos, figurinos por máscara) ----------------
-  L.basso = X.npc({ name: 'Basso', outfit: 'basso', x: -12.4, z: 31, yaw: Math.PI / 2 });
-  L.jill = X.npc({ name: 'Jill', asset: 'jill', scale: 1, x: -12.2, z: 34.2, yaw: Math.PI / 2 });
+  L.jill = X.npc({ name: 'Jill', asset: 'jill', scale: 1, x: -12.4, z: 31, yaw: Math.PI / 2 });
   L.dante = X.npc({ name: 'Dante', outfit: 'dante', x: 2.9, z: 12.3, yaw: Math.PI });
   L.cifra = X.npc({ name: 'Cifra', outfit: 'cifra', ledMask: 0x35e6ff, x: 11.6, y: 2.4, z: 46.6, yaw: -Math.PI / 2, endYaw: Math.PI, endAnim: 'Crouch' });
   L.performers = [['Sol', 'sol', 0, 36.4, 0], ['Rubi', 'lux', -5, 46.6, 1], ['Maya', 'ambar', 5, 46.6, 2], ['Jade', 'violeta', 0, 48.2, 1]].map(([name, outfit, x, z, off]) => { const n = X.npc({ name, asset: 'sol', outfit, x, y: 1.0, z, yaw: Math.PI, performer: true }); n.off = off; return n; });
@@ -253,8 +252,7 @@ function blackout(X) {
   L.patrons.forEach((n, i) => n.panic([[n.home.x * 0.5, 0, 26], [0, 0, 21.5], [0, 0, 16], [0, 0, 9]], 0.2 + i * 0.15));
   L.performers.forEach((n, i) => n.panic([[n.home.x, 1, 49.5], [0, 1, 50.2]], 0.3 + i * 0.2));
   L.cifra.panic([[11.6, 2.4, 41], [13.5, 2.4, 40.5], [13.5, 0, 34], [14.2, 0, 31]], 0.4, true);      // some pela porta de serviço; reaparece no estúdio
-  L.basso.actor.play('Crouch', 0.2); L.basso.o.anim = null;
-  L.jill.actor.play('CrouchIdle', 0.18); L.jill.o.anim = null;
+  L.jill.facePlayer = 0; L.jill.actor.play('CrouchIdle', 0.18); L.jill.o.anim = null;
   X.say('MARA', 'Apagaram o palco! Dante, tira o público pela frente. Ninguém volta pra dentro!');
   X.say('ÍRIS-9', 'Gael, o pulso está rasgando o bracelete. O console analógico do Cifra aguenta — estabilize ali, agora.');
 }
@@ -283,7 +281,7 @@ function finishInvasionIfDone(X) {
     X.setDoor('door_service', true); X.saveCheckpoint('cp01');
     X.say('MARA', 'Salão limpo e o público lá fora inteiro. Obrigada, Gael.');
     X.say('MARA', 'Abri o corredor de serviço. O Cifra se trancou no estúdio, nos bastidores, com o backup da gravação.');
-    X.say('BASSO', 'Tem uma viga caída no corredor. Abaixa a cabeça, campeão — tecla C.');
+    X.say('JILL', 'Tem uma viga caída no corredor. Abaixa a cabeça, campeão — tecla C.');
   }
 }
 function destroyTransmitter(X) {
@@ -332,9 +330,8 @@ export default {
     if (f.blackout) {
       for (const n of [...L.patrons, ...L.performers]) n.hideSafe();
       if (f.invasion_cleared) { L.cifra.place(12.5, 0, 59.5, Math.PI); L.cifra.actor.play('Crouch', 0); } else L.cifra.hideSafe(); L.cifra.o.anim = null;
-      L.basso.actor.play('Crouch', 0); L.basso.o.anim = null;
-      L.jill.actor.play('CrouchIdle', 0); L.jill.o.anim = null;
-    } else { L.cifra.o.anim = 'Idle'; L.basso.o.anim = 'Idle'; L.jill.o.anim = 'Idle'; }
+      L.jill.facePlayer = 0; L.jill.actor.play('CrouchIdle', 0); L.jill.o.anim = null;
+    } else { L.cifra.o.anim = 'Idle'; L.jill.o.anim = 'Idle'; }
     applyLighting(X);
     X.audio.setTrack(S.jukebox); X.audio.setMusic(!f.blackout); X.audio.setAlarm(!!f.blackout && !f.invasion_cleared);
   },
@@ -342,7 +339,7 @@ export default {
   intro(X) {
     X.say('ÍRIS-9', 'Clube Véspera. Mara confirmou: o pessoal daqui guardou a única gravação limpa do sinal.');
     X.say('GAEL', 'E eu de jaqueta de oficina na porta de uma casa noturna. Clássico.');
-    X.say('DANTE', 'Arma no coldre lá dentro. Regra da casa, não minha. O Basso está te esperando no bar.');
+    X.say('DANTE', 'Arma no coldre lá dentro. Regra da casa, não minha. A Jill está te esperando no bar.');
   },
   onResume(X) {
     const f = X.S.flags;
@@ -350,7 +347,7 @@ export default {
   },
   objective(X) {
     const { S } = X, f = S.flags;
-    if (!f.talked_basso) return 'Entre no Véspera e fale com Basso no bar';
+    if (!f.talked_basso) return 'Entre no Véspera e fale com Jill no bar';
     if (!f.panel_solved) return f.sol_talked ? 'Cabine de luz: corte o canal que pisca fora do ritmo' : 'Fale com Sol na ponta da passarela';
     if (!f.blackout) return 'Assista ao show enquanto Cifra rastreia o sinal';
     if (!f.bracelet_stabilized) return 'Estabilize o bracelete no console analógico da cabine';
@@ -376,15 +373,15 @@ export default {
   interactables(X, add) {
     const { S, L, P } = X, f = S.flags, I = L.interact;
     // --- conversas ---
-    if (!f.blackout) add(I.basso, f.talked_basso ? 'Conversar com Basso' : 'Falar com Basso', () => {
-      L.basso.talk(5);
+    if (!f.blackout) add(I.basso, f.talked_basso ? 'Conversar com Jill' : 'Falar com Jill', () => {
+      L.jill.talk(5);
       if (!f.talked_basso) {
         f.talked_basso = true;
-        X.say('BASSO', 'Gael Rocha, o homem que o noticiário explodiu. Senta. Água, porque hoje você precisa enxergar direito.');
-        X.say('BASSO', 'A Sol quer você na ponta da passarela. O Cifra está na cabine de luz, lá no alto à direita.');
-        X.say('BASSO', 'E a jukebox anda tocando uma faixa sete que ninguém botou lá. Se quiser ouvir o que o clube esconde, começa por ela.');
+        X.say('JILL', 'Gael Rocha, o homem que o noticiário explodiu. Senta. Água, porque hoje você precisa enxergar direito.');
+        X.say('JILL', 'A Sol quer você na ponta da passarela. O Cifra está na cabine de luz, lá no alto à direita.');
+        X.say('JILL', 'E a jukebox anda tocando uma faixa sete que ninguém botou lá. Se quiser ouvir o que o clube esconde, começa por ela.');
         X.say('MARA', 'Gael, aqui é a Mara, pelo rádio. Ninguém saca arma no meu salão enquanto o show estiver de pé. Combinado?');
-      } else X.say('BASSO', ['O kit de primeiros socorros fica atrás do balcão. Só pega se sangrar.', 'O camarote VIP tem cofre. O código mora numa música, não na minha cabeça.', 'Mara confia em pouca gente. Você entrou na lista hoje.'][Math.floor(Math.random() * 3)]);
+      } else X.say('JILL', ['O kit de primeiros socorros fica atrás do balcão. Só pega se sangrar.', 'O camarote VIP tem cofre. O código mora numa música, não na minha cabeça.', 'Mara confia em pouca gente. Você entrou na lista hoje.'][Math.floor(Math.random() * 3)]);
     });
     if (!f.blackout) add(V(0, 1.6, 35.4), 'Falar com Sol', () => {
       L.performers[0].talk(6);

@@ -2822,3 +2822,10 @@ O arquivo operacional de parâmetros e matriz de 24 fases é `QUEBRA_NO_TEMPO_GA
 ## Registro de implementação — elenco v0.6.0 (12/11/2026)
 
 Jill adicionada como NPC não hostil no balcão do Véspera em A1-M2, mantendo Basso e os gatilhos da missão. O modelo reptiliano otimizado substitui a aparência do E01 Saqueador Cronal nas missões disponíveis, com os mesmos parâmetros de combate. [Arquivos, medidas e evidências](ELENCO_OTIMIZADO_v0_6_0.md). Este registro não declara as outras 22 missões ou os demais arquétipos como implementados.
+
+
+## Registro de implementação — elenco e recursos v0.6.1 (12/11/2026)
+
+Na implementação atual de A1-M2, Jill **substitui** o atendente do bar, assumindo seu contato e as falas de progressão no balcão. Basso permanece nos registros históricos do roteiro. A flag `talked_basso` permanece por compatibilidade com os saves anteriores. Há apenas uma NPC atendente nesse ponto; Jill se protege atrás do balcão durante o apagão. O E01 continua usando o reptiliano otimizado.
+
+Os recursos de vida, 9 mm, cartuchos, proteção, peças e espingarda têm formas distintas, além de cor. A coleta respeita os limites e informa o ganho real. Drops de inimigos consideram a necessidade do jogador e as armas adquiridas, usam o chão abaixo do alvo e têm limite de 24 objetos transitórios. [Implementação e limites de verificação](ELENCO_DROPS_v0_6_1.md).

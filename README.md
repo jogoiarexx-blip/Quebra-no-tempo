@@ -1,3 +1,5 @@
+> **v0.6.1:** Jill substitui o atendente do bar; recursos têm malhas próprias e drops por necessidade. [Mudanças e validação](docs/ELENCO_DROPS_v0_6_1.md).
+
 > **v0.6.0:** Jill no balcão do Véspera e reptiliano no E01, com modelos otimizados. [Detalhes e medidas](docs/ELENCO_OTIMIZADO_v0_6_0.md).
 
 # QUEBRA NO TEMPO — Ato I: A1-M1 "Rua Quebrada" e A1-M2 "Noite de Neon"
