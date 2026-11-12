@@ -237,9 +237,10 @@ function build(scene, X) {
   L.jill = X.npc({ name: 'Jill', asset: 'jill', scale: 1, x: -12.4, z: 31, yaw: Math.PI / 2 });
   L.dante = X.npc({ name: 'Dante', outfit: 'dante', x: 2.9, z: 12.3, yaw: Math.PI });
   L.cifra = X.npc({ name: 'Cifra', outfit: 'cifra', ledMask: 0x35e6ff, x: 11.6, y: 2.4, z: 46.6, yaw: -Math.PI / 2, endYaw: Math.PI, endAnim: 'Crouch' });
-  L.performers = [['Sol', 'sol', 0, 36.4, 0], ['Rubi', 'lux', -5, 46.6, 1], ['Maya', 'ambar', 5, 46.6, 2], ['Jade', 'violeta', 0, 48.2, 1]].map(([name, outfit, x, z, off]) => { const n = X.npc({ name, asset: name === 'Maya' ? 'boate' : 'sol', outfit: name === 'Maya' ? undefined : outfit, x, y: 1.0, z, yaw: Math.PI, performer: true }); n.off = off; return n; });
+  L.performers = [['Sol', 'sol', 0, 36.4, 0], ['Rubi', 'lux', -5, 46.6, 1], ['Maya', 'ambar', 5, 46.6, 2], ['Jade', 'violeta', 0, 48.2, 1]].map(([name, outfit, x, z, off]) => { const n = X.npc({ name, asset: 'sol', outfit, x, y: 1.0, z, yaw: Math.PI, performer: true }); n.off = off; return n; });
   L.patrons = [['p1', -9.4, 28.6, -Math.PI / 2], ['p2', -9.4, 34.4, -Math.PI / 2], ['p3', -4.2, 33.2, 0.15], ['p4', 3, 30.4, -0.1], ['p5', 6.8, 35.4, -0.45], ['p1', -6.2, 38.6, 0.4], ['p3', 3.4, 37.2, -0.2], ['p2', 8.4, 30.2, -0.5]]
-    .map(([outfit, x, z, yaw]) => X.npc({ outfit, x, z, yaw }));
+    .map(([outfit, x, z, yaw], i) => X.npc({ name: i === 2 ? 'Nico' : undefined, asset: i === 2 ? 'boate' : 'gael', outfit: i === 2 ? undefined : outfit, x, z, yaw }));
+  L.guest = L.patrons[2];
   return L;
 }
 
@@ -373,6 +374,7 @@ export default {
   interactables(X, add) {
     const { S, L, P } = X, f = S.flags, I = L.interact;
     // --- conversas ---
+    if (!f.blackout) add(V(-4.2, 1.3, 33.2), 'Conversar com Nico', () => { L.guest.talk(4); X.say('NICO', 'Os caminhões da Usina Norte passaram a noite toda por aqui. O último voltou vazio. Eu não ficaria naquela estrada depois do show.'); });
     if (!f.blackout) add(I.basso, f.talked_basso ? 'Conversar com Jill' : 'Falar com Jill', () => {
       L.jill.talk(5);
       if (!f.talked_basso) {

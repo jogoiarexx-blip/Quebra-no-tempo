@@ -15,7 +15,7 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image
-from build_models import Rig, Writer, acc, qmat
+from build_models import Rig, Writer, acc, qmat, fix_quat_continuity
 from optimize_cast import retarget
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -141,6 +141,34 @@ def grounded_clip(rig, clip):
                             'sole_clearance_m': .006}
 
 
+def retarget_guest(source, target, name):
+    # This upload is A-pose, whereas the canonical game rig is T-pose.
+    # Align the anatomical arm axes before applying source world deltas.
+    pairs = {'LeftShoulder': ('LeftArm','LeftArm'), 'RightShoulder': ('RightArm','RightArm'),
+             'LeftArm': ('LeftForeArm','LeftForeArm'), 'RightArm': ('RightForeArm','RightForeArm'),
+             'LeftForeArm': ('LeftHand','LeftHand'), 'RightForeArm': ('RightHand','RightHand')}
+    corrections = {}
+    for bone, (source_child, target_child) in pairs.items():
+        a = target.BW[target.name[target_child]][:3,3]-target.BW[target.name[bone]][:3,3]
+        b = source.BW[source.name[source_child]][:3,3]-source.BW[source.name[bone]][:3,3]
+        a /= np.linalg.norm(a); b /= np.linalg.norm(b)
+        v = np.cross(a,b); c = float(np.clip(a@b,-1,1))
+        K = np.array([[0,-v[2],v[1]],[v[2],0,-v[0]],[-v[1],v[0],0]])
+        corrections[bone] = np.eye(3)+K+K@K/max(1e-8,1+c)
+    times, frames, hp = source.clip_deltas(name)
+    output = []
+    for frame in frames:
+        delta = {}
+        for node in target.order:
+            bone = target.short[node]; source_node = source.name.get(bone)
+            delta[node] = frame[source_node]@corrections.get(bone,np.eye(3)) if source_node in frame else delta.get(target.par.get(node),np.eye(3))
+        output.append(target.locals_from_deltas(delta))
+    quats={node:fix_quat_continuity(np.array([frame[node] for frame in output])) for node in target.order}
+    positions=np.tile(target.bindT[target.name['Hips']],(len(times),1))
+    positions[:,1]+=hp[:,1]-source.bindT[source.name['Hips']][1]
+    return times,quats,positions
+
+
 def build_one(src, out, budget, work):
     original_hash = hashlib.sha256(src.read_bytes()).hexdigest()
     original = Rig(str(src))
@@ -155,7 +183,7 @@ def build_one(src, out, budget, work):
         raise ValueError('LOD export removed armature bones')
     clips, floor = {}, {}
     for name in CANONICAL:
-        clip = retarget(reference, target, name)
+        clip = retarget_guest(reference,target,name) if out.stem=='boate' else retarget(reference,target,name)
         if name in FLOOR_CLIPS:
             clip, floor[name] = grounded_clip(target, clip)
         clips[name] = clip
@@ -183,6 +211,7 @@ def build_one(src, out, budget, work):
                       'UV coordinates, base color, normal and metallic/roughness texture roles are preserved.',
                       'Horizontal root travel belongs to the runtime controller.',
                       'NPC bind height normalized from 1.87m; pig already 1.70m.',
+                      'Guest A-pose shoulder/arm axes are aligned to the canonical T-pose before animation retargeting.' if out.stem=='boate' else 'Canonical world-delta retargeting preserves the source T-pose anatomy.',
                       'Generic accessory bones inherit their parent motion. Canonical source has detailed fingers absent in some target rigs.']}
 
 

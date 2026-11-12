@@ -57,6 +57,16 @@ for (const [name, path, byteLimit, minTriangles, maxTriangles] of entries) {
     }
   });
 
+  if(name==='boate')test('NPC A-pose: braços mantêm o lado anatômico após retarget para Idle',()=>{
+    const mixer=new THREE.AnimationMixer(gltf.scene);mixer.clipAction(gltf.animations.find(c=>c.name==='Idle')).play();mixer.update(0);gltf.scene.updateMatrixWorld(true);
+    const bones={};gltf.scene.traverse(o=>{if(o.isBone)bones[o.name.replace(/^mixamorig[:_]?/,'')]=o;});
+    for(const [side,sign]of[['Left',1],['Right',-1]]){
+      assert.ok(bones[side+'Hand'].getWorldPosition(new THREE.Vector3()).x*sign>.15,'mão não deve atravessar o tronco para o lado oposto');
+      assert.ok(bones[side+'ForeArm'].getWorldPosition(new THREE.Vector3()).x*sign>.15,'cotovelo permanece fora do tronco');
+    }
+    mixer.stopAllAction();
+  });
+
   test(`${name}: clipes canônicos finitos e deformação estável`, () => {
     assert.deepEqual(gltf.animations.map(a => a.name), canonical);
     for (const anim of gltf.animations) {

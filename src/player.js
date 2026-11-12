@@ -1,7 +1,7 @@
 // Gael: controlador de cápsula (AABB), câmera sobre o ombro, armas e Eco Cronal.
 import * as THREE from 'three';
 import { G, CFG, diff } from './state.js';
-import { input, down, hit } from './input.js';
+import { input, down, hit, resetInput } from './input.js';
 import { moveBody, boxFree, raycast, solidOnly } from './physics.js';
 import { Actor } from './characters.js';
 import { sfx } from './audio.js';
@@ -47,6 +47,7 @@ export function createPlayer(scene) {
 }
 
 export function resetPlayer(snap) {
+  resetInput();
   P.body.pos.set(snap.x, snap.y, snap.z); P.body.vel.set(0, 0, 0); P.yaw = P.facing = snap.yaw || 0; P.pitch = -0.05;
   P.hp = snap.hp ?? CFG.player.maxHealth; P.armor = snap.armor ?? 0; P.dead = false; P.deadT = 0; P.state = 'GROUNDED';
   P.weapons = JSON.parse(JSON.stringify(snap.weapons || { martelo9: { have: false, mag: 15 }, trovao_duplo: { have: false, mag: 2 } }));
@@ -190,6 +191,7 @@ export function updatePlayer(dt, enemies) {
   // ---------- olhar ----------
   const sens = 0.0022 * G.settings.sens * (P.ads ? 0.7 : 1);
   P.yaw -= input.mouseDX * sens; P.pitch -= input.mouseDY * sens * (G.settings.invertY ? -1 : 1);
+  input.mouseDX = input.mouseDY = 0;
   if (pad) { P.yaw -= pad.rx * 2.6 * dt * G.settings.sens * (P.ads ? 0.6 : 1); P.pitch -= pad.ry * 1.8 * dt * G.settings.sens * (G.settings.invertY ? -1 : 1); }
   P.pitch = Math.max(-1.2, Math.min(1.2, P.pitch));
   // ---------- intenção de movimento ----------

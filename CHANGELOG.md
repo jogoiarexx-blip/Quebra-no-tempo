@@ -1,3 +1,10 @@
+# v0.7.1 — 12/11/2026
+
+- Corrigida a adaptação A-pose → T-pose do NPC enviado: mãos e cotovelos permanecem no lado anatômico correto, sem atravessar o tronco.
+- O modelo masculino passa a representar Nico, cliente da boate com conversa própria. Maya mantém sua aparência de performer.
+- Missão/checkpoint inicia com comandos neutros. Deltas do mouse são consumidos uma vez, evitando multiplicar a rotação quando um frame executa vários ticks.
+- Smoke controla pointer lock e verifica orientação/altura da câmera na entrada da Usina. 59 testes Node.
+
 # v0.7.0 — 12/11/2026
 
 - A1-M3 Usina Norte jogável: resfriamento/vapor, guindaste e ponte alternativa, turbinas/backup, galeria, defesa do terraço e saída por 2/3 Selos.

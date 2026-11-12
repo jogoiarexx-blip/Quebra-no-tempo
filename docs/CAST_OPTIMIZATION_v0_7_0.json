@@ -173,6 +173,7 @@
       "UV coordinates, base color, normal and metallic/roughness texture roles are preserved.",
       "Horizontal root travel belongs to the runtime controller.",
       "NPC bind height normalized from 1.87m; pig already 1.70m.",
+      "Guest A-pose shoulder/arm axes are aligned to the canonical T-pose before animation retargeting.",
       "Generic accessory bones inherit their parent motion. Canonical source has detailed fingers absent in some target rigs."
     ]
   }

@@ -2835,3 +2835,8 @@ Os recursos de vida, 9 mm, cartuchos, proteção, peças e espingarda têm forma
 A1-M3 **Usina Norte** agora possui uma rota jogável com pátio, válvulas/vapor, guindaste opcional com ponte, turbinas, backup, galeria e terraço da chaminé. O selo das turbinas é obtido com o backup; válvulas ou guindaste oferecem a segunda confirmação. Dois de três selos e descarga neutralizada liberam a saída. A1-M4 e as demais missões continuam especificadas, sem implementação nesta versão. [Estado implementado, modelos e limites de teste](RELATORIO_v0_7_0.md).
 
 M1/M2 recebem detalhes de cenário estáticos sem mudar colisores. O E02 passa a usar o porco policial; Maya usa a nova NPC da boate. Jill recebe atividade de atendente e conversa, mantendo o abrigo no apagão. Animações de impacto/tiro/morte dos inimigos passam a ter ações próprias; reforços aguardam vaga no pool em vez de serem perdidos.
+
+
+### Ajuste de implementação v0.7.1
+
+O NPC masculino enviado agora representa **Nico**, cliente do Véspera com conversa e evacuação; Maya mantém o modelo e papel de performer. A adaptação A-pose do cliente foi corrigida para conservar a posição anatômica dos braços. Reiniciar missão/checkpoint limpa comandos pendentes, e os deltas da câmera não se repetem entre ticks de um mesmo frame.

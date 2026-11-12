@@ -15,28 +15,33 @@ try{
  await page.goto('http://127.0.0.1:8080/');
  await page.waitForFunction(()=>window.QNT?.ui.mode==='menu',null,{timeout:90000});
  assert.ok(models.has('porco-policial.glb')&&models.has('boate.glb'),'novos GLB devem carregar de verdade');
- const start=async id=>{await page.evaluate(id=>{QNT.input.touchMode=true;QNT.startMission(id,null);},id);await page.waitForTimeout(750);};
+ const start=async id=>{const cleared=await page.evaluate(async id=>{
+    QNT.input.freeLook=true;
+    if(document.pointerLockElement){const released=new Promise(r=>document.addEventListener('pointerlockchange',r,{once:true}));document.exitPointerLock();await released;}
+    QNT.input.freeLook=false;QNT.input.touchMode=true;QNT.input.mouseDX=200;QNT.input.mouseDY=-700;QNT.input.keys.add('KeyW');QNT.input.lmb=true;
+    QNT.startMission(id,null);return{dx:QNT.input.mouseDX,dy:QNT.input.mouseDY,keys:QNT.input.keys.size,lmb:QNT.input.lmb,pitch:QNT.P.pitch};
+   },id);assert.deepEqual(cleared,{dx:0,dy:0,keys:0,lmb:false,pitch:-.05});await page.waitForTimeout(750);};
  const shot=async name=>{await page.waitForTimeout(250);await page.screenshot({path:`qa/screenshots/${name}.png`});};
  for(const id of ['A1-M1','A1-M2','A1-M3']){
   await start(id);
   const info=await page.evaluate(()=>({id:QNT.mission.id,mode:QNT.ui.mode,gate:QNT.gate.group.children.length,actions:Object.keys(QNT.P.actor.actions),programs:QNT.G.renderer.info.programs.length,details:QNT.L.sceneryDetails?.stats}));
   assert.equal(info.id,id);assert.equal(info.mode,'play');assert.ok(info.gate>=7&&info.programs>0);assert.ok(info.actions.includes('CrouchIdle')&&info.actions.includes('CrouchWalk'));
   if(id!=='A1-M3'){assert.ok(info.details.triangles>2500&&info.details.triangles<=35000);assert.ok(info.details.drawCalls<=24);}
-  const cast=await page.evaluate(()=>({e01:QNT.enemies.list.filter(e=>e.type==='E01').map(e=>e.actor.assetName),pig:QNT.enemies.list.find(e=>e.type==='E02').actor.mesh.geometry.index.count/3,jill:QNT.L.jill&&{asset:QNT.L.jill.actor.assetName,pos:QNT.L.jill.home.toArray(),clip:QNT.L.jill.actor.current},bartenders:QNT.L.npcs.filter(n=>n.name==='Jill'||n.name==='Basso').map(n=>n.name),maya:QNT.L.performers?.find(n=>n.name==='Maya')?.actor.assetName}));
+  const cast=await page.evaluate(()=>({e01:QNT.enemies.list.filter(e=>e.type==='E01').map(e=>e.actor.assetName),pig:QNT.enemies.list.find(e=>e.type==='E02').actor.mesh.geometry.index.count/3,jill:QNT.L.jill&&{asset:QNT.L.jill.actor.assetName,pos:QNT.L.jill.home.toArray(),clip:QNT.L.jill.actor.current},bartenders:QNT.L.npcs.filter(n=>n.name==='Jill'||n.name==='Basso').map(n=>n.name),guest:QNT.L.guest?.actor.assetName,maya:QNT.L.performers?.find(n=>n.name==='Maya')?.actor.assetName}));
   assert.ok(cast.e01.length>0&&cast.e01.every(n=>n==='E01'));assert.ok(cast.pig>=18000&&cast.pig<=22000);
   if(id==='A1-M1'){
    await shot('m1-oficina');
-   await page.evaluate(()=>{QNT.P.hp=10000;QNT.P.body.pos.set(0,.01,44);QNT.P.yaw=0;QNT.P.pitch=.05;});await shot('m1-avenida');
+   await page.evaluate(()=>{QNT.P.hp=100;QNT.P.iframe=999;QNT.P.body.pos.set(0,.01,44);QNT.P.yaw=0;QNT.P.pitch=.05;});await shot('m1-avenida');
   }
   if(id==='A1-M2'){
-   assert.deepEqual(cast.bartenders,['Jill']);assert.deepEqual(cast.jill.pos,[-12.4,0,31]);assert.equal(cast.jill.clip,'BartenderIdle');assert.equal(cast.maya,'boate');
+   assert.deepEqual(cast.bartenders,['Jill']);assert.deepEqual(cast.jill.pos,[-12.4,0,31]);assert.equal(cast.jill.clip,'BartenderIdle');assert.equal(cast.guest,'boate');assert.equal(cast.maya,'sol');
    const conversation=await page.evaluate(()=>{const q=QNT;q.P.body.pos.set(-8.5,.01,31);q.P.yaw=-Math.PI/2;q.P.pitch=0;q.P.holster=true;const i=q.interactables().find(i=>i.text==='Falar com Jill'),distance=i.pos.distanceTo(q.P.body.pos);i.use();return{distance,talked:q.G.S.flags.talked_basso,clip:q.L.jill.actor.current,obj:q.objective()};});
    assert.ok(conversation.distance<2.5);assert.equal(conversation.talked,true);assert.equal(conversation.clip,'Greeting');assert.match(conversation.obj,/Sol/);await shot('m2-jill-bar');
    const collection=await page.evaluate(()=>{const q=QNT;q.P.hp=90;q.P.armor=95;q.P.ammo.ammo9=134;q.P.ammo.shells=23;const results=['medkit','armor','ammo9','shells'].map(t=>q.collect(t,35)),full=['medkit','armor','ammo9','shells'].map(t=>q.collect(t,35));const pk=q.L.pickups.find(p=>p.type==='medkit');q.P.body.pos.set(pk.pos.x,pk.pos.y-.35,pk.pos.z);q.tick(1/60);const kept=!q.G.S.pickups.includes(pk.id);q.P.hp=60;q.tick(1/60);return{results,full,kept,collected:q.G.S.pickups.includes(pk.id),hidden:!q.pickupMeshes[pk.id].visible};});
    assert.deepEqual(collection.results,[true,true,true,true]);assert.deepEqual(collection.full,[false,false,false,false]);assert.ok(collection.kept&&collection.collected&&collection.hidden);
    const blackout=await page.evaluate(()=>{const q=QNT;const i=q.interactables().filter(i=>i.text.startsWith('Cortar canal '))[q.G.S.signal];i.use();for(let i=0;i<340;i++)q.tick(1/60);const live=q.L.jill.actor.current;q.saveCheckpoint('cp01');q.restartCheckpoint();return{live,restored:q.L.jill.actor.current,talked:q.G.S.flags.talked_basso};});
    assert.equal(blackout.live,'CrouchIdle');assert.equal(blackout.restored,'CrouchIdle');assert.ok(blackout.talked);
-   await start('A1-M2');await page.evaluate(()=>{const q=QNT;q.P.hp=10000;q.P.body.pos.set(1,.01,24);q.P.yaw=0;q.P.pitch=0;q.enemies.clear();q.enemies.spawnGroup('qa-cast',{units:[{type:'E01',x:1,y:0,z:28,role:'hold',path:[]}]});});
+   await start('A1-M2');await page.evaluate(()=>{const q=QNT;q.P.hp=100;q.P.iframe=999;q.P.body.pos.set(1,.01,24);q.P.yaw=0;q.P.pitch=0;q.enemies.clear();q.enemies.spawnGroup('qa-cast',{units:[{type:'E01',x:1,y:0,z:28,role:'hold',path:[]}]});});
    await page.waitForTimeout(500);
    const attack=await page.evaluate(()=>{const q=QNT,e=q.enemies.list.find(e=>e.active&&e.type==='E01');e.state='fire';e.burstLeft=1;e.burstT=0;e.aimDir.set(0,0,-1);q.enemies.update(1/60);const clip=e.actor.current;e.damage(1,'torso',null);return{clip,hit:e.actor.current};});
    assert.equal(attack.clip,'Attack');assert.equal(attack.hit,'HitReaction');await shot('m2-reptiliano');
@@ -53,7 +58,7 @@ try{
   }
   if(id==='A1-M3'){
    assert.equal(await page.evaluate(()=>QNT.P.eco.unlocked),true);
-   await page.evaluate(()=>{QNT.P.hp=10000;QNT.P.body.pos.set(0,.01,7);QNT.P.yaw=0;QNT.P.pitch=.08;});await shot('m3-usina-patio');
+   await page.evaluate(()=>{QNT.P.hp=100;QNT.P.iframe=999;QNT.P.body.pos.set(0,.01,7);QNT.P.yaw=0;QNT.P.pitch=.08;});await page.waitForTimeout(250);const view=await page.evaluate(()=>({pitch:QNT.P.pitch,yaw:QNT.P.yaw,dy:QNT.input.mouseDY,locked:QNT.input.locked,free:QNT.input.freeLook,dir:QNT.G.camera.getWorldDirection(QNT.P.fwd.clone()).toArray(),height:QNT.G.camera.position.y-QNT.P.body.pos.y}));assert.ok(Math.abs(view.pitch-.08)<.01&&Math.abs(view.yaw)<.01&&Math.abs(view.dir[1]-Math.sin(.08))<.01&&view.height>.8,JSON.stringify(view));await shot('m3-usina-patio');
    const result=await page.evaluate(()=>{
     const q=QNT,use=text=>{const i=q.interactables().find(i=>i.text.startsWith(text));if(!i)throw Error('interação ausente '+text);i.use();};
     use('Fechar válvula de resfriamento 1');use('Fechar válvula de resfriamento 2');const first=q.G.S.seals.length,door=q.L.doors.turbine_door.col.enabled;
@@ -61,7 +66,7 @@ try{
     const defenders=q.enemies.aliveInGroup('eg31');const old=q.enemies.list.find(e=>e.active&&e.group==='qa-old-sniper');old.lostT=15.2;old.los=false;old.losT=1;q.enemies.update(.1);q.enemies.update(.01);if(q.enemies.list.filter(e=>e.active&&e.alive&&e.group==='eg31').length!==3)throw Error('sniper antigo bloqueou reforços');for(const e of q.enemies.list)if(e.active&&e.alive)e.damage(999,'head',null);q.tick(1/60);
     q.P.body.pos.set(-15.5,4.01,107.5);use('Copiar backup');q.P.body.pos.set(-15,4.01,116);q.tick(1/60);q.restartCheckpoint();
     const saved=q.G.S.checkpointId,restored=q.G.S.flags.backup_secured,earlyExit=q.gateStable();
-    q.P.hp=10000;q.P.body.pos.set(0,8.01,175);q.tick(1/60);const roof=q.enemies.aliveInGroup('eg33');for(const e of q.enemies.list)if(e.active&&e.alive)e.damage(999,'head',null);q.tick(1/60);
+    q.P.hp=100;q.P.iframe=999;q.P.body.pos.set(0,8.01,175);q.tick(1/60);const roof=q.enemies.aliveInGroup('eg33');for(const e of q.enemies.list)if(e.active&&e.alive)e.damage(999,'head',null);q.tick(1/60);
     q.P.body.pos.set(0,8.01,182);use('Cortar descarga');
     return{first,door,defenders,saved,restored,earlyExit,roof,seals:q.G.S.seals.length,ready:q.gateStable()};
    });
@@ -86,7 +91,7 @@ try{
  await page.evaluate(async()=>{
   document.getElementById('qa-preview').remove();const THREE=await import('/vendor/three/three.module.min.js'),{Actor}=await import('/src/characters.js');
   const sc=new THREE.Scene();sc.background=new THREE.Color(0x29313b);sc.add(new THREE.HemisphereLight(0xffffff,0x7b8297,3));const light=new THREE.DirectionalLight(0xffffff,2.4);light.position.set(3,6,5);sc.add(light);
-  ['jill','boate','E01','E02'].forEach((name,i)=>{const a=new Actor(name);a.root.position.x=(i-1.5)*1.8;a.root.rotation.y=.15;a.play(name==='boate'?'Performance':name==='jill'?'BartenderIdle':'RelaxedIdle',0);a.update(.4);sc.add(a.root);});
+  ['jill','boate','E01','E02'].forEach((name,i)=>{const a=new Actor(name);a.root.position.x=(i-1.5)*1.8;a.root.rotation.y=.15;a.play(name==='boate'?'RelaxedIdle':name==='jill'?'BartenderIdle':'RelaxedIdle',0);a.update(.4);sc.add(a.root);});
   const cam=new THREE.OrthographicCamera(-3.7,3.7,2.08,-2.08,.01,100);cam.position.set(0,1.2,7);cam.lookAt(0,.85,0);
   const r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});r.setSize(1280,720);r.render(sc,cam);r.domElement.style.cssText='position:fixed;inset:0;z-index:9999;width:100vw;height:100vh';document.body.append(r.domElement);
  });
