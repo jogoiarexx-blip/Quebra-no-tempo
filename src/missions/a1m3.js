@@ -24,7 +24,7 @@ function build(scene){
  B(M.metal,-18,18,8,9.1,193.5,194,{col:{seeThrough:true}});
  L.pts.spawn={x:0,y:.01,z:2,yaw:0};L.pts.gate=V(0,9.3,189);L.pts.gateYaw=0;L.pts.portal=V(0,5,174);
  makeSky(L,0x080b12,0x332129,0x6e321b);makeSkyline(L,0,90,150,34,91);makeRain(L,500);
- label('USINA NORTE',0,5,-5.35,8,0);label('CIFRA / BACKUP',0,2,10,3,0);
+ label('USINA NORTE',0,5,-5.35,8,0);
  for(const z of [12,38,70,140,164]){streetLamp(L,-20,z,z>118?4:0,0xf8b56d,1);streetLamp(L,20,z,z>118?4:0,0x7acbda,-1);}
  // Docas, carga e transformadores: volumetria com rotas laterais largas.
  for(const [x,z]of[[-17,5],[16,9],[-14,28],[14,30],[-14,20],[14,20]]){

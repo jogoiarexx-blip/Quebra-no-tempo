@@ -171,6 +171,7 @@ function applyWorldState() {
   $('fade').style.opacity = 0;
 }
 function startMission(id, snap) {
+  toast('', 0);
   loadMission(id);
   enemies.clear();
   if (snap) { G.S = JSON.parse(JSON.stringify(snap.S)); G.settings.difficulty = snap.difficulty || G.settings.difficulty; }

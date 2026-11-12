@@ -44,3 +44,5 @@ Checkpoints: início, entrada do hall, galeria após o backup e chegada ao terra
 A pose de bind do NPC enviado é A-pose, diferente da T-pose do rig de referência. A calibração dos eixos anatômicos de ombro/braço/antebraço evita dobrar os braços duas vezes. Um teste verifica que mãos e cotovelos de Idle permanecem no lado correto do tronco. O cliente foi chamado Nico e colocado entre o público, com diálogo próprio; Maya foi preservada.
 
 Os comandos pendentes são limpos ao reiniciar o jogador e a câmera consome cada delta de mouse uma única vez. O smoke libera o pointer lock antes de suas reposições de QA e verifica pitch, direção e altura da câmera no pátio. O teste automatizado de transição por botão continua sendo executado.
+
+A inspeção final também removeu uma placa flutuante que obstruía a visão inicial do pátio. Reiniciar missão/checkpoint limpa os avisos de texto anteriores; falhas reais da nova gravação continuam sendo exibidas.

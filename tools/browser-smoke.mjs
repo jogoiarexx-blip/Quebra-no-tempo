@@ -19,8 +19,8 @@ try{
     QNT.input.freeLook=true;
     if(document.pointerLockElement){const released=new Promise(r=>document.addEventListener('pointerlockchange',r,{once:true}));document.exitPointerLock();await released;}
     QNT.input.freeLook=false;QNT.input.touchMode=true;QNT.input.mouseDX=200;QNT.input.mouseDY=-700;QNT.input.keys.add('KeyW');QNT.input.lmb=true;
-    QNT.startMission(id,null);return{dx:QNT.input.mouseDX,dy:QNT.input.mouseDY,keys:QNT.input.keys.size,lmb:QNT.input.lmb,pitch:QNT.P.pitch};
-   },id);assert.deepEqual(cleared,{dx:0,dy:0,keys:0,lmb:false,pitch:-.05});await page.waitForTimeout(750);};
+    QNT.X.toast('QA_OLD_NOTICE',60);QNT.startMission(id,null);return{notice:document.getElementById('toast').textContent,dx:QNT.input.mouseDX,dy:QNT.input.mouseDY,keys:QNT.input.keys.size,lmb:QNT.input.lmb,pitch:QNT.P.pitch};
+   },id);const {notice,...neutral}=cleared;assert.notEqual(notice,'QA_OLD_NOTICE');assert.deepEqual(neutral,{dx:0,dy:0,keys:0,lmb:false,pitch:-.05});await page.waitForTimeout(750);};
  const shot=async name=>{await page.waitForTimeout(250);await page.screenshot({path:`qa/screenshots/${name}.png`});};
  for(const id of ['A1-M1','A1-M2','A1-M3']){
   await start(id);
