@@ -2,11 +2,12 @@
 // Laço fixo de 60 Hz, máquina única de interface, missões como módulos guiados por flags (GDD §9.3 / §28 / §46).
 import * as THREE from 'three';
 import { G, CFG, DIFF } from './state.js';
-import { input, initInput, requestLock, releaseLock, hit, pollPad, endFrame } from './input.js';
+import { input, initInput, requestLock, releaseLock, hit, pollPad, endFrame, resetInput } from './input.js';
 import { updateLights, building } from './world.js';
 import { loadCharacters } from './characters.js';
+import { initTouch } from './touch.js';
 import { NPC } from './npcs.js';
-import { P, createPlayer, resetPlayer, updatePlayer, updateCamera, giveWeapon, setHolster, unlockEco, damagePlayer, WEAPONS, AMMO_CAP } from './player.js';
+import { P, createPlayer, resetPlayer, updatePlayer, updateCamera, giveWeapon, switchWeapon, setHolster, unlockEco, damagePlayer, WEAPONS, AMMO_CAP } from './player.js';
 import { enemies, createEnemyPools, initEnemyList } from './enemies.js';
 import { initFx, updateFx, sparks, flash, shake, makeSeal, makeGate, makePortal } from './fx.js';
 import { audio, initAudio, setVolumes, setPaused, setIntensity, setTrack, setMusic, setAlarm, sfx } from './audio.js';
@@ -25,15 +26,17 @@ const persistSettings = () => { store.settings = { ...G.settings }; commit(store
 
 // ------------------------------------------------------------------ interface (máquina única)
 const ui = { mode: 'boot', stack: [] };
+let touchControls;
 const LAYERS = ['boot', 'menu', 'missions', 'newgame', 'options', 'controls', 'pause', 'doc', 'dead', 'results'];
 function renderUi() {
   const top = ui.stack[ui.stack.length - 1];
   for (const id of LAYERS) $(id).classList.toggle('on', id === top || (!top && id === ui.mode));
-  $('hud').classList.toggle('on', ui.mode === 'play');
+  $('hud').classList.toggle('on', ui.mode === 'play' && !top);
+  touchControls?.sync(ui.mode === 'play' && !top);
   setPaused(ui.mode === 'play' && ui.stack.length > 0);
 }
 const simActive = () => ui.mode === 'play' && ui.stack.length === 0;
-function push(id) { if (ui.stack.includes(id)) return; ui.stack.push(id); if (ui.mode === 'play') releaseLock(); renderUi(); const f = $(id).querySelector('.btn:not([disabled])'); if (f) f.focus(); }
+function push(id) { if (ui.stack.includes(id)) return; ui.stack.push(id); resetInput(); if (ui.mode === 'play') releaseLock(); renderUi(); const f = $(id).querySelector('.btn:not([disabled])'); if (f) f.focus(); }
 function pop() {
   const id = ui.stack.pop(); renderUi();
   if (id === 'options') persistSettings();
@@ -68,7 +71,7 @@ const moon = new THREE.DirectionalLight(0xb4c8ff, 1.2); moon.position.set(30, 60
 moon.shadow.mapSize.set(2048, 2048); Object.assign(moon.shadow.camera, { left: -28, right: 28, top: 28, bottom: -28, near: 1, far: 140 }); moon.shadow.bias = -0.0015;
 function applyQuality() {
   const q = CFG.graphics.quality[G.settings.quality] || CFG.graphics.quality.medium;
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5) * q.renderScale);
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.25 : 1.5) * q.renderScale);
   renderer.setSize(innerWidth, innerHeight, false);
   const sh = G.settings.quality === 'high';
   if (renderer.shadowMap.enabled !== sh) { renderer.shadowMap.enabled = sh; moon.castShadow = sh; scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; }); }
@@ -126,7 +129,7 @@ const X = {
   get S() { return G.S; }, get L() { return L; }, P, enemies, sfx, camera, settings: G.settings,
   get activeGroups() { return activeGroups; }, get portal() { return portal; }, get playing() { return ui.mode === 'play'; }, get campaign() { return store.campaign; },
   fx: { sparks, flash, shake },
-  say, toast, after, once, setDoor, grantSeal, saveCheckpoint, gateStable, refreshPickups, giveWeapon, setHolster, damagePlayer,
+  say, toast, after, once, setDoor, grantSeal, saveCheckpoint, gateStable, refreshPickups, giveWeapon, switchWeapon, setHolster, damagePlayer,
   hasTimers: () => timers.length > 0,
   openDoc(d) { $('docK').textContent = d.k; $('docT').textContent = d.t; $('docB').textContent = d.b; push('doc'); },
   startGroup(id, spawn = true) { if (activeGroups.has(id) || G.S.groupsDone.includes(id)) return; activeGroups.set(id, { spawned: false }); if (spawn) X.spawnGroup(id); },
@@ -197,8 +200,9 @@ function updateInteraction() {
   const p = P.body.pos; let best = null, bd = 2.5;
   for (const it of interactables()) { const d = Math.hypot(it.pos.x - p.x, (it.pos.y - (p.y + 1)) * 0.6, it.pos.z - p.z); if (d < bd) { bd = d; best = it; } }
   prompt = best;
+  const use = $('touchInteract'); if (use) use.disabled = !best;
   const e = $('prompt');
-  if (best && !P.dead && !exitSeq) { e.style.display = 'block'; const key = input.usingPad ? 'X' : 'E'; if (e.dataset.t !== key + best.text) { e.dataset.t = key + best.text; e.innerHTML = `<kbd>${key}</kbd>${best.text}`; } } else e.style.display = 'none';
+  if (best && !P.dead && !exitSeq) { e.style.display = 'block'; const key = input.touchMode ? 'USAR' : input.usingPad ? 'X' : 'E'; if (e.dataset.t !== key + best.text) { e.dataset.t = key + best.text; e.innerHTML = `<kbd>${key}</kbd>${best.text}`; } } else e.style.display = 'none';
   if (best && !P.dead && !exitSeq && P.inputLock <= 0 && (hit('KeyE') || (input.pad && input.pad.hit.x))) best.use();
 }
 G.hooks.onEcoUsed = () => { if (mission.onEcoUsed) mission.onEcoUsed(X); };
@@ -351,7 +355,7 @@ function frameUpdate(dt, sim) {
   if (sealFx.life > 0) { sealFx.life -= dt; sealFx.group.position.y += dt * 0.5; sealFx.group.scale.setScalar(Math.min(1, sealFx.life)); if (sealFx.life <= 0) sealFx.group.visible = false; }
   gate.stable = ui.mode === 'play' && gateStable();
   if (ui.mode === 'play') {
-    P.actor.update(dt); enemies.frame(dt); updateCamera(dt);
+    P.actor.update(sim ? dt : 0); enemies.frame(sim ? dt : 0); if (sim) updateCamera(dt);
     updateLights(L, P.body.pos, dt); moon.target.position.copy(P.body.pos); moon.position.set(P.body.pos.x + 30, P.body.pos.y + 60, P.body.pos.z - 25);
     if (L.rain) L.rain.update(sim ? dt : 0, camera.position, mission.outdoor(P.body.pos));
     updateHud();
@@ -361,12 +365,13 @@ function frameUpdate(dt, sim) {
     if (L.rain) L.rain.update(dt, camera.position, true);
   }
   if (L.sky) L.sky.position.copy(camera.position);
-  updateFx(dt); updateTalk(sim || ui.mode !== 'play' ? dt : 0);
+  updateFx(sim || ui.mode !== 'play' ? dt : 0); updateTalk(sim || ui.mode !== 'play' ? dt : 0);
 }
 let last = performance.now(), acc = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min((now - last) / 1000, CFG.simulation.maxDeltaSecondsAfterTabReturn); last = now;
+  if (document.hidden) { last = now; acc = 0; return; }
   pollPad();
   if (hit('Escape') || (input.pad && (input.pad.hit.start || (input.pad.hit.bb && ui.stack.length)))) back();
   if (ui.stack[ui.stack.length - 1] === 'doc' && hit('KeyE')) pop();
@@ -409,10 +414,14 @@ async function boot() {
   loadMission(cp && MISSIONS[cp.missionId] ? cp.missionId : 'A1-M1');
   G.S = newS(mission); applyWorldState(); resetPlayer({ ...L.pts.spawn });
   initInput(canvas, () => { if (simActive() && !input.freeLook) { fillPause(); push('pause'); } });
+  touchControls = initTouch({ isPlaying: simActive, pause: back, switchWeapon: () => switchWeapon(P.current === 'martelo9' ? 'trovao_duplo' : 'martelo9') });
+  addEventListener('blur', () => { if (simActive()) back(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && simActive()) back(); });
+  $('bFullscreen').addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen?.(); else document.documentElement.requestFullscreen?.().catch(() => {}); });
   bindUi(); $('bootP').style.width = '100%';
   ui.mode = 'menu'; refreshMenu(); renderUi();
   requestAnimationFrame(frame);
 }
 // ganchos de teste/QA (console): window.QNT
-window.QNT = { G, P, updateCamera, enemies, ui, input, X, restartCheckpoint, get L() { return L; }, get mission() { return mission; }, get store() { return store; }, startMission, loadMission, saveCheckpoint, grantSeal, gateStable, setSimulateSaveFailure, tick, back, objective: () => mission.objective(X), interactables, collect };
+window.QNT = { G, P, updateCamera, enemies, ui, input, X, restartCheckpoint, get L() { return L; }, get mission() { return mission; }, get gate() { return gate; }, get store() { return store; }, startMission, loadMission, saveCheckpoint, grantSeal, gateStable, setSimulateSaveFailure, tick, back, objective: () => mission.objective(X), interactables, collect };
 boot().catch((e) => { $('bootT').textContent = 'ERRO AO CARREGAR: ' + e.message; console.error(e); });

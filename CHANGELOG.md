@@ -1,3 +1,7 @@
+# v0.5.0 — 12/11/2026
+
+Fenda com shader, partículas, fragmentos instanciados e luz local. CrouchIdle/CrouchWalk com pés apoiados e cadência por velocidade. Materiais com relevo e integração dos controles móveis preservando A1-M2. Onze testes automatizados aprovados; inspeção WebGL pendente por bloqueio de inicialização do navegador.
+
 # Changelog
 
 ## v0.2.0 — A1-M2 Noite de Neon + melhorias da A1-M1

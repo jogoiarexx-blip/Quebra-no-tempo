@@ -1,14 +1,12 @@
-name: Publicar Quebra no Tempo pelo ZIP
+name: Testar e publicar Quebra no Tempo
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'QUEBRA_NO_TEMPO_v*.zip'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -19,70 +17,32 @@ concurrency:
 jobs:
   publicar:
     runs-on: ubuntu-latest
-    if: github.actor != 'github-actions[bot]'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Baixar repositorio
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          fetch-depth: 1
-          persist-credentials: true
-
-      - name: Validar e extrair o pacote
-        shell: bash
+          node-version: 22
+      - name: Testar animações, controlador e entradas
+        run: npm test
+      - name: Preparar navegador de verificação
         run: |
-          set -euo pipefail
-          arquivo="$(find . -maxdepth 1 -type f -name 'QUEBRA_NO_TEMPO_v*.zip' | sort -V | tail -n 1)"
-          if [[ -z "$arquivo" ]]; then
-            echo 'Envie um arquivo QUEBRA_NO_TEMPO_v*.zip para a raiz da branch main.' >&2
-            exit 1
-          fi
-          unzip -tq "$arquivo"
-          if unzip -Z -1 "$arquivo" | grep -E '(^/|(^|/)\.\.(/|$))'; then
-            echo 'Arquivo ZIP com caminho inseguro.' >&2
-            exit 1
-          fi
-          mkdir -p "$RUNNER_TEMP/qnt-extraido" "$RUNNER_TEMP/qnt-site"
-          unzip -q "$arquivo" -d "$RUNNER_TEMP/qnt-extraido"
-          origem="$RUNNER_TEMP/qnt-extraido/Quebra-no-tempo"
-          if [[ ! -f "$origem/index.html" ]]; then
-            origem="$RUNNER_TEMP/qnt-extraido"
-          fi
-          for arquivo_obrigatorio in index.html src/main.js src/missions/a1m1.js src/missions/a1m2.js vendor/three/three.module.min.js models/gael.glb models/sol.glb; do
-            test -f "$origem/$arquivo_obrigatorio" || { echo "Falta $arquivo_obrigatorio no pacote." >&2; exit 1; }
-          done
-          grep -q 'type="importmap"' "$origem/index.html" || { echo 'Importmap do Three.js ausente.' >&2; exit 1; }
-          cp -a "$origem"/. "$RUNNER_TEMP/qnt-site/"
-          echo "SITE_ORIGEM=$origem" >> "$GITHUB_ENV"
-
-      - name: Preparar GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Preparar arquivos do site
-        uses: actions/upload-pages-artifact@v3
+          npm install --no-save --package-lock=false playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Verificar carregamento WebGL das duas missões
+        run: node tools/browser-smoke.mjs
+      - name: Preparar arquivos estáticos
+        run: |
+          mkdir -p "$RUNNER_TEMP/qnt-site"
+          cp index.html figurinos.html README.md CHANGELOG.md "$RUNNER_TEMP/qnt-site/"
+          cp -R src models vendor docs "$RUNNER_TEMP/qnt-site/"
+          touch "$RUNNER_TEMP/qnt-site/.nojekyll"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: ${{ runner.temp }}/qnt-site
-
       - name: Publicar site
         id: deployment
         uses: actions/deploy-pages@v4
-
-      - name: Atualizar codigo-fonte no repositorio
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Somente apos deploy valido: preserva historico, workflows, CNAME e .nojekyll.
-          while IFS= read -r -d '' antigo; do
-            case "$antigo" in
-              .github/*|CNAME|.nojekyll) ;;
-              *) rm -f -- "$antigo" ;;
-            esac
-          done < <(git ls-files -z)
-          cp -a "$SITE_ORIGEM"/. ./
-          git add -A
-          if ! git diff --cached --quiet; then
-            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'feat: publicar Quebra no Tempo v0.2.0'
-            git push origin HEAD:main
-          fi

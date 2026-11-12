@@ -45,6 +45,12 @@ export function materials() {
   M.wood = lam(canvasTex(128, 128, (g, w, h) => { noise(g, w, h, '#77583a', 0.08); g.strokeStyle = 'rgba(30,18,8,.5)'; g.lineWidth = 3; g.strokeRect(2, 2, w - 4, h - 4); g.beginPath(); g.moveTo(0, 0); g.lineTo(w, h); g.stroke(); }));
   M.dark = lam(canvasTex(64, 64, (g, w, h) => noise(g, w, h, '#1c1f26', 0.06, 300)));
   M.floor = lam(canvasTex(256, 256, (g, w, h) => { noise(g, w, h, '#4a4d50', 0.05); g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 2; for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * 64, 0); g.lineTo(i * 64, h); g.moveTo(0, i * 64); g.lineTo(w, i * 64); g.stroke(); } }));
+  // Reuse the existing height detail as bump: no additional texture download.
+  for (const key of ['concrete', 'floor', 'metal']) {
+    const old = M[key];
+    M[key] = new THREE.MeshPhongMaterial({ map: old.map, bumpMap: old.map, bumpScale: key === 'metal' ? 0.015 : 0.035, specular: key === 'floor' ? 0x343e49 : 0x171c24, shininess: key === 'floor' ? 22 : 12 });
+    old.dispose();
+  }
   M.clubFloor = new THREE.MeshPhongMaterial({ map: canvasTex(256, 256, (g, w, h) => { noise(g, w, h, '#15121c', 0.05); g.strokeStyle = 'rgba(255,80,210,.10)'; g.lineWidth = 2; for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * 64, 0); g.lineTo(i * 64, h); g.moveTo(0, i * 64); g.lineTo(w, i * 64); g.stroke(); } }), specular: 0x4a3a5a, shininess: 80 });
   M.velvet = lam(canvasTex(128, 128, (g, w, h) => { noise(g, w, h, '#3a0f2a', 0.08); for (let x = 0; x < w; x += 16) { g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(x, 0, 6, h); } }));
   M.wallClub = lam(canvasTex(256, 256, (g, w, h) => { noise(g, w, h, '#1a1622', 0.05); g.fillStyle = 'rgba(255,79,208,.06)'; for (let y = 0; y < h; y += 32) g.fillRect(0, y, w, 2); }));

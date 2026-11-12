@@ -1,3 +1,5 @@
+> **v0.5.0:** nova fenda, animações de agachado e controles móveis nas duas missões. [Detalhes e testes](docs/MELHORIAS_FENDA_AGACHADO_v0_5_0.md).
+
 # QUEBRA NO TEMPO — Ato I: A1-M1 "Rua Quebrada" e A1-M2 "Noite de Neon"
 
 TPS 3D para navegador (Three.js, WebGL2, sem etapa de build, publicado no GitHub Pages), construído a partir do

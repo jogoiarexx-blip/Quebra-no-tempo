@@ -1,5 +1,6 @@
 // Efeitos visuais econômicos: partículas em pool, traçantes, selos, Fenda de Saída, portal.
 import * as THREE from 'three';
+import { createRift } from './rift.js';
 import { G } from './state.js';
 
 const N = 500;
@@ -64,24 +65,7 @@ export function makeSeal() {
 }
 // Fenda de Saída: ruptura vertical de placas de relógio quebradas.
 export function makeGate() {
-  const g = new THREE.Group();
-  const core = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 3.4), new THREE.MeshBasicMaterial({ color: 0x35e6ff, transparent: true, opacity: 0.2, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
-  core.position.y = 1.8; g.add(core);
-  const shardMat = new THREE.MeshBasicMaterial({ color: 0x7a6a4a, side: THREE.DoubleSide });
-  const shards = [];
-  for (let i = 0; i < 12; i++) {
-    const s = new THREE.Mesh(new THREE.CircleGeometry(0.14 + Math.random() * 0.22, 3 + (i % 3)), shardMat);
-    const side = i % 2 ? 1 : -1; s.userData = { bx: side * (0.5 + Math.random() * 0.7), by: 0.5 + (i / 12) * 2.8, ph: Math.random() * 6.28 };
-    s.position.set(s.userData.bx, s.userData.by, 0); g.add(s); shards.push(s);
-  }
-  const o = { group: g, stable: false, flare: 0, t: 0, update(dt) {
-    o.t += dt; const k = o.stable ? 1 : 0.25;
-    core.material.opacity = (o.stable ? 0.55 + 0.25 * Math.sin(o.t * 5) : 0.12 + 0.05 * Math.sin(o.t * 9)) + o.flare;
-    core.scale.x = (o.stable ? 1.6 + 0.3 * Math.sin(o.t * 3) : 0.5) + o.flare * 6;
-    shardMat.color.set(o.stable ? 0xd9a441 : 0x5a5248);
-    for (const s of shards) { const u = s.userData; s.position.x = u.bx * (1 + 0.12 * Math.sin(o.t * 1.5 + u.ph)) + Math.sign(u.bx) * o.flare * 2; s.position.y = u.by + 0.08 * Math.sin(o.t * 2 + u.ph); s.rotation.z += dt * k * (0.4 + u.ph * 0.1); s.rotation.y = Math.sin(o.t + u.ph) * 0.5; }
-  } };
-  rings.push(o); return o;
+  const rift = createRift(); rings.push(rift); return rift;
 }
 export function makePortal() {
   const g = new THREE.Group();

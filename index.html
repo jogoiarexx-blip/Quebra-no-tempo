@@ -74,9 +74,10 @@ button{font:inherit;color:inherit;cursor:pointer}
 #doc .card{border-top-color:var(--cyan)}#doc pre{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;font-size:14px;line-height:1.55;color:#cfe9f2}
 @media (max-width:700px){#obj{max-width:60vw}#weapon .a{font-size:32px}}
 </style>
+<link rel="stylesheet" href="./src/responsive.css">
 </head>
 <body>
-<canvas id="c"></canvas>
+<canvas tabindex="0" id="c"></canvas>
 
 <div id="hud">
   <div id="vign"></div><div id="dmg"></div>
@@ -102,7 +103,7 @@ button{font:inherit;color:inherit;cursor:pointer}
   <button class="btn" id="bMis">Missões<small>A1-M1 Rua Quebrada • A1-M2 Noite de Neon</small></button>
   <button class="btn" id="bOpt">Opções</button>
   <button class="btn" id="bCtl">Controles</button>
-  <div class="foot">Vertical slice A1-M1 → A1-M2 (v0.2) • revisão de design 2.2 • valores de protótipo, não balanceados em playtest.<br>Conteúdo 18+: violência estilizada e casa noturna adulta sem nudez explícita. Há opção de apresentação atenuada em Opções.</div>
+  <div class="foot">Vertical slice A1-M1 → A1-M2 (v0.5.0) • revisão de design 2.2 • valores de protótipo, não balanceados em playtest.<br>Conteúdo 18+: violência estilizada e casa noturna adulta sem nudez explícita. Há opção de apresentação atenuada em Opções.</div>
 </div></div>
 
 <div id="missions" class="layer center"><div class="card">
@@ -177,6 +178,22 @@ button{font:inherit;color:inherit;cursor:pointer}
   <p id="rText"></p>
   <button class="btn" id="bNext">Próxima missão<small>Eco Cronal e arsenal seguem com você</small></button><button class="btn" id="bReplay">Repetir missão</button><button class="btn" id="bResMenu">Menu principal</button>
 </div></div>
+
+<div id="playTools" hidden><button id="bTouchPause" aria-label="Pausar jogo">Ⅱ <span>Pausa</span></button><button id="bFullscreen" aria-label="Alternar tela cheia">⛶</button></div>
+<div id="touchControls" hidden aria-label="Controles por toque">
+  <div id="touchMove" aria-label="Arraste para mover"><i></i><span>MOVER</span></div>
+  <div id="touchLook" aria-label="Arraste para olhar"><span>ARRASTE PARA OLHAR</span></div>
+  <div class="touchActions">
+    <button data-code="KeyE" id="touchInteract">USAR</button>
+    <button data-hold="aim" aria-label="Segure para mirar">MIRA</button>
+    <button data-hold="fire" class="fire" aria-label="Segure para atirar">TIRO</button>
+    <button data-code="Space">PULO</button><button data-code="KeyC">AGACHAR</button>
+    <button data-code="KeyZ">ESQUIVA</button><button data-code="KeyF">GOLPE</button>
+    <button data-code="KeyR">RECARGA</button><button data-code="ShiftLeft">CORRER</button>
+    <button data-code="KeyQ">ECO</button><button data-code="KeyV">OMBRO</button>
+    <button data-code="Tab" id="touchWeapon">ARMA</button>
+  </div>
+</div>
 
 <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }</script>
 <script type="module" src="./src/main.js"></script>

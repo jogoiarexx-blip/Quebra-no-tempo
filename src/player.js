@@ -23,7 +23,7 @@ export const P = {
   fireCd: 0, reloadT: 0, lastFire: 9, bloom: 0, coyote: 0, jumpBuf: 0, rollT: 0, rollCd: 0, rollDir: new THREE.Vector3(), iframe: 0,
   mantle: null, stepT: 0, inputLock: 0, dead: false, deadT: 0, speed: 0,
   eco: { buf: [], acc: 0, charges: 0, lastUse: -9, trail: [], teaser: false, unlocked: false, recharge: 0 },
-  crouch: false, slideT: 0, slideDir: new THREE.Vector3(), meleeCd: 0, meleeT: 0, holster: false,
+  cameraHeight: STAND_H, crouch: false, slideT: 0, slideDir: new THREE.Vector3(), meleeCd: 0, meleeT: 0, holster: false,
   aimPoint: new THREE.Vector3(), muzzle: new THREE.Vector3(), camPos: new THREE.Vector3(), fwd: new THREE.Vector3(),
   hitDirs: [],
 };
@@ -53,7 +53,7 @@ export function resetPlayer(snap) {
   P.ammo = { ...(snap.ammo || { ammo9: 0, shells: 0 }) }; P.current = snap.current || null;
   P.reloadT = 0; P.fireCd = 0; P.rollT = 0; P.mantle = null; P.iframe = 0; P.bloom = 0; P.inputLock = 0.3;
   P.eco.buf.length = 0; P.eco.teaser = false; P.eco.recharge = 0; P.eco.unlocked = !!snap.ecoUnlocked; P.eco.charges = P.eco.unlocked ? CFG.eco.maxCharges : 0;
-  P.hitDirs.length = 0; P.ads = false; P.crouch = false; P.slideT = 0; P.meleeCd = 0; P.meleeT = 0; P.body.h = STAND_H; P.holster = !!snap.holster;
+  P.hitDirs.length = 0; P.ads = false; P.crouch = false; P.slideT = 0; P.meleeCd = 0; P.meleeT = 0; P.body.h = STAND_H; P.cameraHeight = STAND_H; P.holster = !!snap.holster;
   actor.root.rotation.set(0, P.facing, 0); spin.rotation.set(0, 0, 0); actor.model.rotation.set(0, 0, 0);
   actor.play('Idle', 0); P.camDist = 3;
   showGun();
@@ -194,6 +194,7 @@ export function updatePlayer(dt, enemies) {
   P.pitch = Math.max(-1.2, Math.min(1.2, P.pitch));
   // ---------- intenção de movimento ----------
   let ix = (down('KeyD') ? 1 : 0) - (down('KeyA') ? 1 : 0), iz = (down('KeyW') ? 1 : 0) - (down('KeyS') ? 1 : 0);
+  if (input.touchX || input.touchY) { ix = input.touchX; iz = input.touchY; }
   if (pad && (pad.lx || pad.ly)) { ix = pad.lx; iz = -pad.ly; }
   const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
   const fx = Math.sin(P.yaw), fz = Math.cos(P.yaw), rx = -fz, rz = fx;
@@ -231,7 +232,7 @@ export function updatePlayer(dt, enemies) {
       else { P.crouch = true; b.h = CROUCH_H; }
     }
     if (P.crouch && (sprint || jumpHit) && !boxFree(p.x, p.y + 0.02, p.z, b.hw, STAND_H)) { P.crouch = false; b.h = STAND_H; }
-    const acc = b.grounded ? 48 : 48 * 0.4, crouchSp = P.crouch ? Math.min(maxSp, 2.4) : maxSp, tx = wx * crouchSp, tz = wz * crouchSp;
+    const acc = b.grounded ? (P.crouch ? 14 : 48) : 48 * 0.4, crouchSp = P.crouch ? Math.min(maxSp, 1.65) : maxSp, tx = wx * crouchSp, tz = wz * crouchSp;
     const dvx = tx - v.x, dvz = tz - v.z, dl = Math.hypot(dvx, dvz), stepv = acc * dt;
     if (dl <= stepv) { v.x = tx; v.z = tz; } else { v.x += dvx / dl * stepv; v.z += dvz / dl * stepv; }
     if (P.jumpBuf > 0 && P.coyote > 0 && !locked && !P.crouch) { v.y = JUMP_V; P.jumpBuf = 0; P.coyote = 0; b.grounded = false; sfx.jump(); }
@@ -280,7 +281,7 @@ export function updatePlayer(dt, enemies) {
   if (P.state === 'ROLLING') { actor.play('Crouch', 0.06); spin.rotation.x = (P.rollT / 0.5) * Math.PI * 2; spin.position.y = 0.55; }
   else if (P.state === 'MANTLING') actor.play('Crouch', 0.1);
   else if (P.state === 'SLIDING') { actor.play('Fall', 0.06); spin.rotation.x = -0.75; spin.position.y = 0.42; }
-  else if (P.crouch && b.grounded) { actor.play('Crouch', 0.12); spin.position.y = 0.75 + (P.speed > 0.4 ? Math.abs(Math.sin(G.time * 9)) * 0.04 : 0); }
+  else if (P.crouch && b.grounded) { const moving = P.speed > 0.12; actor.play(moving ? 'CrouchWalk' : 'CrouchIdle', 0.18, moving ? Math.max(0.12, P.speed / (0.56 * actor.model.scale.y / (0.62 * 0.9))) : 1); }
   else if (!b.grounded) actor.play('Fall', 0.12);
   else if (P.speed < 0.4) actor.play('Idle', 0.18);
   else if (P.speed < 3.9) actor.play('Walking', 0.15, Math.max(0.6, P.speed / 1.9));
@@ -294,7 +295,9 @@ export function updateCamera(dt, renderAlpha) {
   const cam = G.camera, p = P.body.pos;
   const cp = Math.cos(P.pitch), fwd = P.fwd.set(Math.sin(P.yaw) * cp, Math.sin(P.pitch), Math.cos(P.yaw) * cp);
   const rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw);
-  const headY = p.y + P.body.h - 0.25;
+  P.cameraHeight += (P.body.h - P.cameraHeight) * (1 - Math.exp(-dt / 0.10));
+  const eyeHeight = boxFree(p.x, p.y + P.body.h, p.z, 0.05, Math.max(0.001, P.cameraHeight - P.body.h)) ? P.body.h : P.cameraHeight;
+  const headY = p.y + eyeHeight - 0.25;
   let side = 0.62 * P.shoulder;
   const sh = raycast(p.x, headY, p.z, rx * P.shoulder, 0, rz * P.shoulder, 0.62 + 0.25, (c) => !c.barrel); if (sh) side = Math.max(0, sh.t - 0.25) * P.shoulder;
   const px = p.x + rx * side, pz = p.z + rz * side;
@@ -316,9 +319,9 @@ export function updateCamera(dt, renderAlpha) {
     const aimQ = _q.setFromEuler(_e.set(-P.pitch, P.yaw, 0)), downQ = _qd.setFromEuler(_e.set(1.25, P.facing, 0));
     gun.quaternion.copy(downQ).slerp(aimQ, actor.aimW); gun.position.copy(_v);
     gun.visible = actor.model.visible;
-    P.muzzle.set(p.x + rx * 0.2, p.y + 1.42, p.z + rz * 0.2).addScaledVector(fwd, 0.55);
+    P.muzzle.set(p.x + rx * 0.2, p.y + P.body.h - 0.38, p.z + rz * 0.2).addScaledVector(fwd, 0.55);
     if (actor.aimW > 0.8) { P.muzzle.copy(_v).addScaledVector(fwd, 0.32); }
     // se o cano estiver dentro de parede, recua para o peito
-    if (boxFree(P.muzzle.x, P.muzzle.y - 0.05, P.muzzle.z, 0.04, 0.1)) P.muzzle.set(p.x, p.y + 1.42, p.z);
+    if (boxFree(P.muzzle.x, P.muzzle.y - 0.05, P.muzzle.z, 0.04, 0.1)) P.muzzle.set(p.x, p.y + P.body.h - 0.38, p.z);
   } else gun.visible = false;
 }
