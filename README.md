@@ -4,6 +4,21 @@ TPS 3D para navegador (Three.js, WebGL2, sem etapa de build, publicado no GitHub
 `docs/QUEBRA_NO_TEMPO_GDD_COMPLETO_v2_2.md` e de `src/data/game_config_v2_2.json` (lido em runtime: vida, armadura,
 velocidades, coyote/buffer, FOV, escalas de render, Eco Cronal, selos e tempos da Fenda vêm dele).
 
+## Documentação principal e evolução do jogo
+
+- **[Abrir o GDD completo v2.2](docs/QUEBRA_NO_TEMPO_GDD_COMPLETO_v2_2.md)** — referência de design da campanha, das 24 missões e dos sistemas.
+- [Parâmetros do jogo](src/data/game_config_v2_2.json) — valores usados pelo código.
+- [Histórico de alterações](CHANGELOG.md) — evolução das versões.
+- [Relatório de testes](docs/RELATORIO_TESTES.md) — evidências e pendências de validação.
+
+### Como manter o projeto alinhado
+
+1. Consultar o GDD antes de mudar fases, progressão ou sistemas. O que está especificado no GDD não significa que já foi implementado.
+2. Registrar mudanças de design no GDD e atualizar os parâmetros correspondentes quando necessário.
+3. Registrar cada entrega no histórico, separando implementado, testado e pendente.
+4. Atualizar os estados de implementação deste README e o relatório de testes conforme o código evoluir.
+5. Usar o histórico de commits para consultar alterações anteriores e evitar cópias divergentes do GDD. Este é o documento de referência: `docs/QUEBRA_NO_TEMPO_GDD_COMPLETO_v2_2.md`.
+
 ## Jogar
 
 - **Online:** https://jogoiarexx-blip.github.io/Quebra-no-tempo/ (GitHub Pages servindo a raiz do repositório).
