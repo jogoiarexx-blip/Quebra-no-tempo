@@ -1,5 +1,5 @@
 {
-  "_comentario": "E01 usa o reptiliano otimizado; E02 mantém o atirador atual.",
+  "_comentario": "E01 usa o reptiliano otimizado; E02 usa o porco policial otimizado.",
   "E01": "reptiliano.glb",
-  "E02": null
+  "E02": "porco-policial.glb"
 }

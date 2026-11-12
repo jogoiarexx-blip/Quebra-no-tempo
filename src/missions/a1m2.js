@@ -237,7 +237,7 @@ function build(scene, X) {
   L.jill = X.npc({ name: 'Jill', asset: 'jill', scale: 1, x: -12.4, z: 31, yaw: Math.PI / 2 });
   L.dante = X.npc({ name: 'Dante', outfit: 'dante', x: 2.9, z: 12.3, yaw: Math.PI });
   L.cifra = X.npc({ name: 'Cifra', outfit: 'cifra', ledMask: 0x35e6ff, x: 11.6, y: 2.4, z: 46.6, yaw: -Math.PI / 2, endYaw: Math.PI, endAnim: 'Crouch' });
-  L.performers = [['Sol', 'sol', 0, 36.4, 0], ['Rubi', 'lux', -5, 46.6, 1], ['Maya', 'ambar', 5, 46.6, 2], ['Jade', 'violeta', 0, 48.2, 1]].map(([name, outfit, x, z, off]) => { const n = X.npc({ name, asset: 'sol', outfit, x, y: 1.0, z, yaw: Math.PI, performer: true }); n.off = off; return n; });
+  L.performers = [['Sol', 'sol', 0, 36.4, 0], ['Rubi', 'lux', -5, 46.6, 1], ['Maya', 'ambar', 5, 46.6, 2], ['Jade', 'violeta', 0, 48.2, 1]].map(([name, outfit, x, z, off]) => { const n = X.npc({ name, asset: name === 'Maya' ? 'boate' : 'sol', outfit: name === 'Maya' ? undefined : outfit, x, y: 1.0, z, yaw: Math.PI, performer: true }); n.off = off; return n; });
   L.patrons = [['p1', -9.4, 28.6, -Math.PI / 2], ['p2', -9.4, 34.4, -Math.PI / 2], ['p3', -4.2, 33.2, 0.15], ['p4', 3, 30.4, -0.1], ['p5', 6.8, 35.4, -0.45], ['p1', -6.2, 38.6, 0.4], ['p3', 3.4, 37.2, -0.2], ['p2', 8.4, 30.2, -0.5]]
     .map(([outfit, x, z, yaw]) => X.npc({ outfit, x, z, yaw }));
   return L;
@@ -303,7 +303,7 @@ function startTrain(X) {
 export default {
   id: 'A1-M2', name: 'Noite de Neon', sectorNames: SECTOR_NAMES, sectorAt,
   sealsRequired: 2, sealsAvailable: 3, requiredFlags: ['metro_relays_on'],
-  enemiesTotal: 13, secretsTotal: 3, next: null, ambientTrack: 2,
+  enemiesTotal: 13, secretsTotal: 3, next: 'A1-M3', ambientTrack: 2,
   build: (scene, X) => build(scene, X),
   newState: () => ({ signal: Math.floor(Math.random() * 4), jukebox: 2 }),
   outdoor: (p) => p.z < 14.2 && p.y > -1,
@@ -331,7 +331,7 @@ export default {
       for (const n of [...L.patrons, ...L.performers]) n.hideSafe();
       if (f.invasion_cleared) { L.cifra.place(12.5, 0, 59.5, Math.PI); L.cifra.actor.play('Crouch', 0); } else L.cifra.hideSafe(); L.cifra.o.anim = null;
       L.jill.facePlayer = 0; L.jill.actor.play('CrouchIdle', 0); L.jill.o.anim = null;
-    } else { L.cifra.o.anim = 'Idle'; L.jill.o.anim = 'Idle'; }
+    } else { L.cifra.o.anim = 'Idle'; L.jill.o.anim = 'BartenderIdle'; }
     applyLighting(X);
     X.audio.setTrack(S.jukebox); X.audio.setMusic(!f.blackout); X.audio.setAlarm(!!f.blackout && !f.invasion_cleared);
   },
@@ -518,7 +518,7 @@ export default {
       if (!s.on || s.cut > 0 || f.blackout) v = 0;
       s.cone.material.opacity = 0.13 * v; s.pool.material.opacity = 0.3 * v; s.head.material.color.setHex(v > 0.05 ? s.col : 0x222222); if (!f.blackout) s.l.intensity = 22 * v;
     });
-    if (!f.blackout) for (const n of L.performers) if (n.state === 'idle' && n.facePlayer <= 0) n.actor.play(DANCES[(Math.floor(t / 14) + n.off) % DANCES.length], 0.6);
+    if (!f.blackout) for (const n of L.performers) if (n.state === 'idle' && n.facePlayer <= 0) n.actor.play(n.actor.assetName==='boate'?'Performance':DANCES[(Math.floor(t / 14) + n.off) % DANCES.length], 0.6);
     if (f.blackout) { const k = Math.sin(t * 6) > 0; for (const b of L.emBeacons) b.material = k ? L.M.lampRed : L.M.lampOff; }
     // câmera de segurança varrendo
     if (L.cam.alive) { if (sim) { camYaw += camDir * dt * 0.35; if (Math.abs(camYaw) > 0.6) camDir *= -1; } L.cam.group.rotation.y = Math.PI / 2 + camYaw; L.cam.cone.material.opacity = f.cam_alarm ? 0.14 : 0.07; }
@@ -526,6 +526,6 @@ export default {
     L.dante.setVisible(true);
   },
   menuCam(t, cam) { cam.position.set(6 + Math.sin(t * 0.1) * 4, 3.4 + Math.sin(t * 0.2) * 0.3, 27 + Math.cos(t * 0.1) * 2); cam.lookAt(0, 2.2, 44); return V(0, 3, 38); },
-  resultsText: (X) => `${X.S.pecas} Peças Cronais recolhidas. Eco Cronal permanente desbloqueado. A gravação original está com a resistência; A1-M3 — Usina Norte é o próximo marco de produção.`,
+  resultsText: (X) => `${X.S.pecas} Peças Cronais recolhidas. Eco Cronal permanente desbloqueado. A gravação original está com a resistência; Siga para A1-M3 — Usina Norte.`,
 };
 function setElevator(L, y) { const e = L.elevator; e.mesh.position.y = y; e.col.min[1] = y - 0.3; e.col.max[1] = y; }

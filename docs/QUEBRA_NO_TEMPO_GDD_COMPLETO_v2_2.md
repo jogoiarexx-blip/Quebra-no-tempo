@@ -2829,3 +2829,9 @@ Jill adicionada como NPC não hostil no balcão do Véspera em A1-M2, mantendo B
 Na implementação atual de A1-M2, Jill **substitui** o atendente do bar, assumindo seu contato e as falas de progressão no balcão. Basso permanece nos registros históricos do roteiro. A flag `talked_basso` permanece por compatibilidade com os saves anteriores. Há apenas uma NPC atendente nesse ponto; Jill se protege atrás do balcão durante o apagão. O E01 continua usando o reptiliano otimizado.
 
 Os recursos de vida, 9 mm, cartuchos, proteção, peças e espingarda têm formas distintas, além de cor. A coleta respeita os limites e informa o ganho real. Drops de inimigos consideram a necessidade do jogador e as armas adquiridas, usam o chão abaixo do alvo e têm limite de 24 objetos transitórios. [Implementação e limites de verificação](ELENCO_DROPS_v0_6_1.md).
+
+## Registro de implementação — v0.7.0 (12/11/2026)
+
+A1-M3 **Usina Norte** agora possui uma rota jogável com pátio, válvulas/vapor, guindaste opcional com ponte, turbinas, backup, galeria e terraço da chaminé. O selo das turbinas é obtido com o backup; válvulas ou guindaste oferecem a segunda confirmação. Dois de três selos e descarga neutralizada liberam a saída. A1-M4 e as demais missões continuam especificadas, sem implementação nesta versão. [Estado implementado, modelos e limites de teste](RELATORIO_v0_7_0.md).
+
+M1/M2 recebem detalhes de cenário estáticos sem mudar colisores. O E02 passa a usar o porco policial; Maya usa a nova NPC da boate. Jill recebe atividade de atendente e conversa, mantendo o abrigo no apagão. Animações de impacto/tiro/morte dos inimigos passam a ter ações próprias; reforços aguardam vaga no pool em vez de serem perdidos.

@@ -21,14 +21,14 @@ export class NPC {
     this.home.set(this.o.x, this.o.y || 0, this.o.z); this.homeYaw = this.o.yaw || 0;
     this.state = 'idle'; this.path = null; this.pi = 0; this.visible = true; this.facePlayer = 0;
     this.actor.root.position.copy(this.home); this.actor.root.rotation.y = this.homeYaw; this.actor.root.visible = true;
-    this.anim = this.o.anim || 'Idle'; this.actor.play(this.anim, 0);
+    this.anim = this.o.anim || (this.o.asset === 'jill' ? 'BartenderIdle' : this.o.asset === 'boate' && this.performer ? 'Performance' : 'RelaxedIdle'); this.greetingT = 0; this.wasTalking = false; this.actor.play(this.anim, 0);
   }
   setVisible(v) { this.visible = v; this.actor.root.visible = v; }
   pos() { return this.actor.root.position; }
   // pânico: corre por uma rota autorada até a saída e some (estado "SAFE")
   panic(path, delay = 0, hide = true) { this.hideAtEnd = hide; this.state = 'panic'; this.path = path.map((p) => (p.isVector3 ? p : new THREE.Vector3(p[0], p[1] ?? this.home.y, p[2]))); this.pi = 0; this.delay = delay; }
   hideSafe() { this.state = 'safe'; this.setVisible(false); }
-  talk(t = 4) { this.facePlayer = t; }
+  talk(t = 4) { this.facePlayer = t; this.greetingT = Math.min(1.3,t*.4); this.wasTalking = true; this.actor.play('Greeting',.18,1,{once:true,restart:true}); }
   update(dt, cam) {
     if (!this.visible) return;
     const r = this.actor.root;
@@ -42,8 +42,10 @@ export class NPC {
       }
     } else if (this.facePlayer > 0 && G.level) {
       this.facePlayer -= dt; const pp = G.playerPos; if (pp) { const yaw = Math.atan2(pp.x - r.position.x, pp.z - r.position.z); let dy = yaw - r.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); r.rotation.y += dy * Math.min(1, dt * 6); }
-      this.actor.play('Idle', 0.3);
+      this.greetingT = Math.max(0,this.greetingT-dt);
+      if(this.greetingT<=0)this.actor.play('Talk',.2);
     } else if (this.state === 'idle' && this.facePlayer <= 0 && this.anim) {
+      if(this.wasTalking){if(['Talk','Greeting'].includes(this.actor.current))this.actor.play(this.anim,.25);this.wasTalking=false;}
       let dy = this.homeYaw - r.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); r.rotation.y += dy * Math.min(1, dt * 2);
     }
     if (this.performer) { const holo = G.settings.attenuate; if (this.isHolo !== holo) { this.isHolo = holo; this.actor.mesh.material = holo ? holoMat : this.actor.baseMaterial; } }

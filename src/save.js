@@ -2,13 +2,22 @@
 // (GDD pede IndexedDB; para o slice usamos localStorage com o mesmo contrato de confirmação.)
 const KEY = 'quebra_no_tempo_v1';
 export const SAVE_SCHEMA = 1;
-export const CONTENT_VERSION = 'a1m1-slice-0.1.0';
+export const CONTENT_VERSION = 'a1-three-missions-0.7.0';
 let simulateFailure = false;
 export function setSimulateSaveFailure(v) { simulateFailure = v; }   // usado pelo teste A1M1-015
 function read(k) { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : null; } catch { return null; } }
 export function loadAll() {
   const d = read(KEY);
-  if (!d || d.saveSchemaVersion !== SAVE_SCHEMA) return { saveSchemaVersion: SAVE_SCHEMA, settings: null, campaign: { completed: {}, unlocked: ['A1-M1'], pecasCronais: 0, rewardsGranted: {} }, checkpoint: null };
+  const fresh = {saveSchemaVersion:SAVE_SCHEMA,settings:null,campaign:{completed:{},unlocked:['A1-M1'],flags:{},pecasCronais:0,rewardsGranted:{}},checkpoint:null};
+  if(!d || d.saveSchemaVersion!==SAVE_SCHEMA)return fresh;
+  d.campaign={...fresh.campaign,...d.campaign};
+  d.campaign.flags=d.campaign.flags||{};
+  d.campaign.completed=d.campaign.completed||{};
+  const unlocked=new Set(Array.isArray(d.campaign.unlocked)?d.campaign.unlocked:['A1-M1']);
+  unlocked.add('A1-M1');
+  if(d.campaign.completed['A1-M1'])unlocked.add('A1-M2');
+  if(d.campaign.completed['A1-M2'])unlocked.add('A1-M3');
+  d.campaign.unlocked=[...unlocked];
   return d;
 }
 export function commit(data) {

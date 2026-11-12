@@ -1,8 +1,10 @@
+> **v0.7.0:** três missões jogáveis; cenários de M1/M2 enriquecidos, animações sociais/de combate, porco policial no E02 e Maya com novo modelo. [Relatório e testes](docs/RELATORIO_v0_7_0.md).
+
 > **v0.6.1:** Jill substitui o atendente do bar; recursos têm malhas próprias e drops por necessidade. [Mudanças e validação](docs/ELENCO_DROPS_v0_6_1.md).
 
 > **v0.6.0:** Jill no balcão do Véspera e reptiliano no E01, com modelos otimizados. [Detalhes e medidas](docs/ELENCO_OTIMIZADO_v0_6_0.md).
 
-# QUEBRA NO TEMPO — Ato I: A1-M1 "Rua Quebrada" e A1-M2 "Noite de Neon"
+# QUEBRA NO TEMPO — Ato I: Rua Quebrada, Noite de Neon e Usina Norte
 
 TPS 3D para navegador (Three.js, WebGL2, sem etapa de build, publicado no GitHub Pages), construído a partir do
 `docs/QUEBRA_NO_TEMPO_GDD_COMPLETO_v2_2.md` e de `src/data/game_config_v2_2.json` (lido em runtime: vida, armadura,
@@ -45,7 +47,7 @@ Novidades desta versão: ver `CHANGELOG.md`.
 
 | Sistema | Estado |
 |---|---|
-| Fluxo completo | menu → dificuldade → A1-M1 → resultados → A1-M2 → resultados; tela de Missões; save por checkpoint |
+| Fluxo completo | menu → dificuldade → A1-M1 → A1-M2 → A1-M3 → resultados; tela de Missões; save por checkpoint |
 | A1-M2 | clube social, show, painel de luz, jukebox/VIP, apagão, invasão + transmissor, bastidores com câmera, elevador, metrô, trem |
 | 8 setores | garagem, beco, avenida, loja, duto/estoque (rota opcional), Véspera/praça, passarela, subestação |
 | Selos de Continuidade | 2 de 3 (loja, subestação, painel do relógio opcional); HUD `SELOS n/2`; IDs não duplicam |
@@ -67,7 +69,7 @@ Novidades desta versão: ver `CHANGELOG.md`.
 - O E01 usa o reptiliano otimizado; o E02 ainda usa o humanoide com roupa de atirador e o drone é geométrico. Os demais modelos de
   `docs/conceitos_inimigos/` continuam pendentes — ver `docs/ELENCO_INIMIGOS.md`.
 - Não implementados: vault dedicado (o salto cobre), consumível rápido, mapa (Tab), remapeamento, interface de toque/mobile,
-  hub, upgrades de arma, mesa de sinuca, A1-M3 em diante. Mara não aparece em cena (só pelo rádio): não há modelo
+  hub, upgrades de arma, mesa de sinuca, A1-M4 em diante. Mara não aparece em cena (só pelo rádio): não há modelo
   feminino além do da dançarina.
 - Na A1-M2 os selos do palco e dos bastidores estão os dois na rota principal; o do VIP é bônus, não substituto.
 - Save usa `localStorage` com gravação verificada, não IndexedDB.

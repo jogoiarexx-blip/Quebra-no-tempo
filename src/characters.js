@@ -4,17 +4,19 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 import { makeCrouchClips } from './crouch.js';
+import { makeActorClips } from './actor-animations.js';
 
 export const assets = {};
 const MODELS = 'models/';     // relativo à página: funciona em qualquer subpasta do GitHub Pages
 export async function loadCharacters(onProgress) {
   const loader = new GLTFLoader();
-  const names = ['gael', 'sol', 'jill'];
+  const names = ['gael', 'sol', 'jill', 'boate'];
   let done = 0;
   await Promise.all(names.map(async (n) => {
     const g = await loader.loadAsync(`${MODELS}${n}.glb`);
     g.scene.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; if (o.material.map) o.material.map.anisotropy = 4; o.material.metalness = Math.min(o.material.metalness, 0.3); } });
     if (n === 'gael' || n === 'jill') g.animations.push(...makeCrouchClips(g.scene, g.animations.find(c => c.name === 'Idle'), g.animations.find(c => c.name === 'Aim')));
+    g.animations.push(...makeActorClips(g.scene,g.animations,n));
     const clips = {}; g.animations.forEach((c) => (clips[c.name] = c));
     let material = null; g.scene.traverse((o) => { if (o.isMesh) material = o.material; });
     assets[n] = { scene: g.scene, clips, material };
@@ -25,7 +27,7 @@ export async function loadCharacters(onProgress) {
   try {
     const man = await (await fetch(`${MODELS}enemies/manifest.json`)).json();
     for (const id of ['E01', 'E02']) if (man[id]) {
-      const g = await loader.loadAsync(`${MODELS}enemies/${man[id]}`); const clips = {}; g.animations.forEach((c) => (clips[c.name] = c));
+      const g = await loader.loadAsync(`${MODELS}enemies/${man[id]}`); g.animations.push(...makeActorClips(g.scene,g.animations,id)); const clips = {}; g.animations.forEach((c) => (clips[c.name] = c));
       g.scene.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; if (o.material.map) o.material.map.anisotropy = 4; o.material.metalness = Math.min(o.material.metalness, 0.3); } });
       assets[id] = { scene: g.scene, clips, material: null, custom: true };
     }
@@ -166,10 +168,17 @@ export class Actor {
     head.getWorldPosition(_v); g.position.copy(_v).add(new THREE.Vector3(0, 0.1 * this.model.scale.y, 0.02));
     this.root.add(g); head.attach(g); this.visor = visor;
   }
-  play(name, fade = 0.15, timeScale = 1) {
+  play(name, fade = 0.15, timeScale = 1, options = {}) {
     if (!this.actions[name]) name = 'Idle';
-    this.actions[name].timeScale = timeScale;
-    if (this.current === name) return;
+    const action = this.actions[name], changed = this.current !== name;
+    if (changed || options.restart) {
+      action.reset();
+      action.setLoop(options.once ? THREE.LoopOnce : THREE.LoopRepeat, options.once ? 1 : Infinity);
+      action.clampWhenFinished = !!options.once;
+      action.enabled = true; action.paused = false; action.play();
+    }
+    action.setEffectiveTimeScale(timeScale);
+    if (!changed && !options.restart) return;
     this.current = name; this.fade = Math.max(fade, 1e-3);
     if (fade === 0) for (const n in this.actions) { this.weights[n] = n === name ? 1 : 0; this.actions[n].setEffectiveWeight(this.weights[n]); }
   }

@@ -1,3 +1,13 @@
+# v0.7.0 — 12/11/2026
+
+- A1-M3 Usina Norte jogável: resfriamento/vapor, guindaste e ponte alternativa, turbinas/backup, galeria, defesa do terraço e saída por 2/3 Selos.
+- Três checkpoints após o início; roteiro físico testado com o mesmo controlador de colisão. Desbloqueio automático para saves que já concluíram M2.
+- Cenários de M1/M2 com detalhes mesclados de garagem, avenida, fachadas, subestação, bar/palco, bastidores e metrô. Sem alterar colisores das rotas antigas.
+- Porco policial otimizado no E02; modelo enviado da boate substitui Maya. Novos modelos têm locomoção calibrada pelo contato da malha com o piso.
+- Jill com idle de atendente, saudação/conversa e abrigo no apagão. Inimigos com impacto, recuo de tiro, movimento lateral/para trás e morte que termina apoiada no piso.
+- Suporte a clipes one-shot no Actor. Corrigida a perda de reforços quando o pool ficava cheio: agora aguardam uma vaga e contam para o encontro.
+- Mantidos os drops distintos e seus limites, o controle agachado e os checkpoints antigos. Detalhes e limites de verificação no relatório v0.7.0.
+
 # v0.6.1 — 12/11/2026
 
 - Jill substitui o atendente no ponto original do balcão. Objetivo, conversa e indicação da entrada usam Jill; a flag antiga permanece para compatibilidade com saves.

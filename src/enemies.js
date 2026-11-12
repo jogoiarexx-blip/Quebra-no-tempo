@@ -16,6 +16,8 @@ const STATS = {
 };
 const pool = { E01: [], E02: [], DRONE: [] };
 const bolts = [];
+const spawnQueue = [];
+function flushSpawns(){for(let i=0;i<spawnQueue.length;){const q=spawnQueue[i],arr=pool[q.unit.type];const e=arr.find(x=>!x.active)||arr.filter(x=>!x.alive).sort((a,b)=>b.deadT-a.deadT)[0];if(!e){i++;continue;}e.deactivate();e.spawn(q.unit,q.group);spawnQueue.splice(i,1);}}
 let scene, laser;
 const _v = new THREE.Vector3(), _d = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3();
 
@@ -54,7 +56,7 @@ class Enemy {
   }
   spawn(def, group) {
     Object.assign(this, { active: true, alive: true, group, role: def.role, hp: this.st.hp * diff().hp, state: 'move', path: (def.path || []).map((q) => ({ x: q[0], z: q[1] })), pathI: 0,
-      cd: 0.6 + Math.random() * 0.6, tele: 0, burstLeft: 0, burstT: 0, first: !!def.first, losT: 0, los: false, noLos: 0, poise: 0, poiseT: 0, stagger: 0, limp: 0, deadT: 0, stuck: 0, side: 0, sideT: 0,
+      cd: 0.6 + Math.random() * 0.6, tele: 0, burstLeft: 0, burstT: 0, first: !!def.first, losT: 0, los: false, noLos: 0, lostT: 0, poise: 0, poiseT: 0, stagger: 0, hitReactT: 0, attackT: 0, limp: 0, deadT: 0, stuck: 0, side: 0, sideT: 0,
       shots: 0, strafeT: 3 + Math.random() * 3, facing: Math.PI, spawnT: def.portal ? 0.9 : 0, home: { x: def.x, z: def.z }, aimDir: new THREE.Vector3(), t: Math.random() * 10, knock: null, alt: def.alt || null, spawnY: def.y });
     this.body.pos.set(def.x, def.y, def.z); this.body.vel.set(0, 0, 0); this.body.grounded = true;
     this.root.visible = true; this.root.position.copy(this.body.pos);
@@ -71,25 +73,25 @@ class Enemy {
     if (part === 'leg' && this.type === 'E01') this.limp = 2.5;
     if ((this.poise >= 40 || part === 'head') && this.type !== 'DRONE' && this.stagger <= 0) { this.stagger = 0.45; this.poise = 0; this.state = 'combat'; this.tele = 0; this.burstLeft = 0; this.cd = Math.max(this.cd, 0.7); }
     this.noLos = 0; this.alerted = true;
+    if(this.actor && this.hp>0){this.hitReactT=.38;this.actor.play('HitReaction',.06,1,{once:true,restart:true});}
     if (this.hp <= 0) { this.die(dir); return true; }
     return false;
   }
   die(dir) {
     this.alive = false; this.deadT = 0; this.state = 'dead'; G.S.stats.kills++;
     if (this.type === 'DRONE') { sparks(this.body.pos, 0x9fe8ff, 30, 6, 0.7); flash(this.body.pos, 1.2, 0.25, 0xff3ad0); sfx.explosion(); }
-    if (this.actor) this.actor.aimTarget = 0;
+    if (this.actor) { this.actor.aimTarget = 0; this.actor.aimW = 0; this.actor.play('Death',.1,1,{once:true,restart:true}); }
     this.fallYaw = dir ? Math.atan2(dir.x, dir.z) : this.facing;
     G.hooks.onEnemyKilled(this);
   }
   update(dt) {
     if (!this.active) return;
-    const b = this.body, p = b.pos, st = this.st; this.t += dt;
+    const b = this.body, p = b.pos, st = this.st; this.t += dt; this.hitReactT=Math.max(0,(this.hitReactT||0)-dt);this.attackT=Math.max(0,(this.attackT||0)-dt);
     if (!this.alive) {
       this.deadT += dt;
       if (this.type === 'DRONE') { b.vel.y -= GRAV * dt; p.y = Math.max(p.y + b.vel.y * dt, 0.3); this.root.position.copy(p); this.root.rotation.z += dt * 6; if (this.deadT > 2) this.deactivate(); return; }
       b.vel.x = b.vel.z = 0; b.vel.y -= GRAV * dt; moveBody(b, dt);
-      const k = Math.min(1, this.deadT / 0.45);
-      this.actor.play('Fall', 0.15); this.root.position.copy(p); this.actor.model.rotation.x = -k * 1.5; this.actor.model.position.y = k * 0.18;
+      this.actor.play('Death',.1,1,{once:true}); this.root.position.copy(p); this.actor.model.rotation.x = 0; this.actor.model.position.y = 0;
       this.gun.visible = false;
       if (this.deadT > 5) { this.root.position.y -= (this.deadT - 5) * 0.5; if (this.deadT > 6.5) this.deactivate(); }
       return;
@@ -105,7 +107,7 @@ class Enemy {
     let mvx = 0, mvz = 0, wantFace = Math.atan2(dx, dz), speed = st.speed * (this.limp > 0 ? 0.45 : 1);
 
     if (this.stagger > 0) { this.stagger -= dt; if (this.knock) { b.vel.x = this.knock.x; b.vel.z = this.knock.z; b.vel.y -= GRAV * dt; moveBody(b, dt); this.knock.multiplyScalar(Math.pow(0.02, dt)); if (this.knock.lengthSq() < 0.1) this.knock = null; } else { b.vel.x = b.vel.z = 0; b.vel.y -= GRAV * dt; moveBody(b, dt); }
-      this.root.position.copy(p); if (this.actor) { this.actor.play('Crouch', 0.08); this.actor.aimTarget = 0; } }
+      this.root.position.copy(p); if (this.actor) { this.actor.play('HitReaction', .08,1,{once:true}); this.actor.aimTarget = 0; } }
     else if (this.type === 'DRONE') this.updateDrone(dt, tp, dist);
     else {
       // ----- movimento -----
@@ -150,7 +152,7 @@ class Enemy {
       if (this.state === 'fire') {
         mvx = mvz = 0; this.burstT -= dt;
         if (this.burstT <= 0) {
-          this.muzzle(_a); spawnBolt(_a, this.aimDir, st, this.type); this.burstLeft--; this.burstT = 0.16; this.shots++;
+          this.muzzle(_a); spawnBolt(_a, this.aimDir, st, this.type); this.attackT=.24;this.actor.play('Attack',.04,1,{once:true,restart:true});this.burstLeft--; this.burstT = 0.16; this.shots++;
           if (this.type === 'E01') { _d.set(tp.x + P.body.vel.x * 0.1 - _a.x, tp.y - _a.y, tp.z + P.body.vel.z * 0.1 - _a.z).normalize(); this.aimDir.lerp(_d, 0.5).normalize(); }
           if (this.burstLeft <= 0) { this.state = this.prevState === 'move' ? 'move' : 'combat'; this.cd = st.cd[0] + Math.random() * (st.cd[1] - st.cd[0]); this.aimDir.set(0, 0, 0); }
         }
@@ -161,14 +163,21 @@ class Enemy {
       if (p.y < this.spawnY - 6) this.die();
       // anti-softlock (GDD §9.3: "IA travada não bloqueia"): sem visão e quase parado por 15 s = foge da cena
       this.lostT = (!this.los && Math.hypot(b.vel.x, b.vel.z) * dt < 0.02 * dt + 0.01) ? (this.lostT || 0) + dt : Math.max(0, (this.lostT || 0) - dt * 2);
-      if (this.lostT > 15 && this.type !== 'E02') { this.alive = false; this.deactivate(); G.hooks.toast && G.hooks.toast('Um invasor recuou'); }          // caiu para fora do mapa (relativo ao ponto de spawn)
+      if (this.lostT > 15 && (this.type !== 'E02' || dist > 45)) { this.alive = false; this.deactivate(); G.hooks.toast && G.hooks.toast('Um invasor recuou'); }          // caiu para fora do mapa (relativo ao ponto de spawn)
       // ----- visual -----
       let df = wantFace - this.facing; df = Math.atan2(Math.sin(df), Math.cos(df)); this.facing += df * Math.min(1, dt * 10);
       this.root.position.copy(p); this.root.rotation.y = this.facing;
       const moving = Math.hypot(b.vel.x, b.vel.z) > 0.4;
-      if (this.stagger > 0) this.actor.play('Crouch', 0.1); else if (moving) this.actor.play(speed > 3 ? 'Running' : 'Walking', 0.15, speed > 3 ? speed / 5.6 : speed / 1.9); else this.actor.play('Idle', 0.2);
+      if (this.hitReactT>0 || this.stagger>0) this.actor.play('HitReaction',.08,1,{once:true});
+      else if (this.attackT>0) this.actor.play('Attack',.04,1,{once:true});
+      else if (moving) {
+        const fwd=(b.vel.x*Math.sin(this.facing)+b.vel.z*Math.cos(this.facing))/speed;
+        const side=(b.vel.x*Math.cos(this.facing)-b.vel.z*Math.sin(this.facing))/speed;
+        const name=fwd<-.45?'WalkBackward':Math.abs(side)>.7&&Math.abs(fwd)<.45?(side<0?'StrafeLeft':'StrafeRight'):speed>3?'Running':'Walking';
+        this.actor.play(name,.15,speed>3?speed/5.6:speed/1.9);
+      } else this.actor.play('RelaxedIdle',.2);
       const aiming = this.state === 'aim' || this.state === 'fire' || (this.los && !moving);
-      this.actor.aimTarget = aiming && this.stagger <= 0 ? 1 : 0; this.actor.pitch = Math.atan2(tp.y - ey, Math.max(1, dist));
+      this.actor.aimTarget = this.hitReactT>0||this.stagger>0?0:this.attackT>0?.45:aiming?1:0; this.actor.pitch = Math.atan2(tp.y - ey, Math.max(1, dist));
     }
   }
   updateDrone(dt, tp, dist) {
@@ -217,15 +226,14 @@ export const enemies = {
   get list() { return [...pool.E01, ...pool.E02, ...pool.DRONE]; },
   all: null,
   spawnGroup(id, def) {
-    for (const u of def.units) {
-      const arr = pool[u.type]; let e = arr.find((x) => !x.active) || arr.filter((x) => !x.alive).sort((a, b) => b.deadT - a.deadT)[0];
-      if (!e) continue; e.deactivate(); e.spawn(u, id);
-    }
+    for(const unit of def.units)spawnQueue.push({unit,group:id});
+    flushSpawns();
   },
-  aliveInGroup(id) { return this.all.filter((e) => e.active && e.alive && e.group === id).length; },
+  aliveInGroup(id) { return this.all.filter(e=>e.active&&e.alive&&e.group===id).length+spawnQueue.filter(q=>q.group===id).length; },
   activeAlive() { return this.all.filter((e) => e.active && e.alive).length; },
-  clear() { for (const e of this.all) e.deactivate(); for (const b of bolts) { b.alive = false; b.m.visible = false; } laser.visible = false; },
+  clear() { spawnQueue.length=0; for (const e of this.all) e.deactivate(); for (const b of bolts) { b.alive = false; b.m.visible = false; } laser.visible = false; },
   update(dt) {
+    flushSpawns();
     for (const e of this.all) e.update(dt);
     // projéteis
     const pb = P.body, pmin = [pb.pos.x - 0.33, pb.pos.y + (P.state === 'ROLLING' ? 0 : 0.05), pb.pos.z - 0.33], pmax = [pb.pos.x + 0.33, pb.pos.y + (P.state === 'ROLLING' ? 1.0 : 1.78), pb.pos.z + 0.33];

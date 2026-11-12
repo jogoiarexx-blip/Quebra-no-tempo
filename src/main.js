@@ -17,9 +17,11 @@ import { audio, initAudio, setVolumes, setPaused, setIntensity, setTrack, setMus
 import { loadAll, commit, SAVE_SCHEMA, CONTENT_VERSION, setSimulateSaveFailure } from './save.js';
 import a1m1 from './missions/a1m1.js';
 import a1m2 from './missions/a1m2.js';
+import a1m3 from './missions/a1m3.js';
+import { improveMissionScenery } from './scenery-details.js';
 
-const MISSIONS = { 'A1-M1': a1m1, 'A1-M2': a1m2 };
-const ORDER = ['A1-M1', 'A1-M2'];
+const MISSIONS = { 'A1-M1': a1m1, 'A1-M2': a1m2, 'A1-M3': a1m3 };
+const ORDER = ['A1-M1', 'A1-M2', 'A1-M3'];
 const $ = (id) => document.getElementById(id);
 const MX = CFG.missionExit;
 let store = loadAll();
@@ -149,7 +151,7 @@ function loadMission(id) {
   disposePickupAssets();
   pickupMeshes = {}; drops = []; doorAnim = {};
   mission = MISSIONS[id]; G.mission = mission;
-  L = mission.build(scene, X); G.level = L; L.npcs = L.npcs || [];
+  L = mission.build(scene, X); improveMissionScenery(L,mission.id); G.level = L; L.npcs = L.npcs || [];
   for (const pk of L.pickups) { const m = makePickupMesh(pk.type); m.position.copy(pk.pos); pickupMeshes[pk.id] = m; }
   gate.group.position.copy(L.pts.gate); gate.group.rotation.y = L.pts.gateYaw || 0;
   if (L.pts.portal) portal.group.position.copy(L.pts.portal);
@@ -306,7 +308,7 @@ function refreshMenu() {
   store = loadAll(); store.campaign.flags = store.campaign.flags || {};
   const cp = store.checkpoint, np = nextPlayable();
   $('bCont').disabled = !cp && !np;
-  $('contInfo').textContent = cp ? `${cp.missionId} • ${cp.checkpointId.toUpperCase()} • ${DIFF[cp.difficulty]?.name || ''}` : np ? `${np} — ${MISSIONS[np].name} (início)` : (store.campaign.completed['A1-M2'] ? 'Ato I (slice) concluído — repita pelo menu Missões' : 'Nenhum checkpoint salvo');
+  $('contInfo').textContent = cp ? `${cp.missionId} • ${cp.checkpointId.toUpperCase()} • ${DIFF[cp.difficulty]?.name || ''}` : np ? `${np} — ${MISSIONS[np].name} (início)` : (store.campaign.completed['A1-M3'] ? 'Três missões concluídas — repita pelo menu Missões' : 'Nenhum checkpoint salvo');
   $('bMis').disabled = store.campaign.unlocked.length < 1;
   $('misList').innerHTML = ORDER.map((id) => { const m = MISSIONS[id], un = store.campaign.unlocked.includes(id), dn = store.campaign.completed[id];
     return `<button class="btn" data-mission="${id}" ${un ? '' : 'disabled'}>${id} — ${m.name}<small>${dn ? `Concluída • melhor tempo ${Math.floor(dn.time / 60)}:${String(Math.floor(dn.time % 60)).padStart(2, '0')} • selos ${dn.seals}/${m.sealsAvailable}` : un ? 'Disponível' : 'Bloqueada — conclua a missão anterior'}</small></button>`; }).join('') + `<button class="btn" data-back>Voltar</button>`;

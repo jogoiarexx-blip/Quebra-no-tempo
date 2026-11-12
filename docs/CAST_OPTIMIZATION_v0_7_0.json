@@ -1,0 +1,179 @@
+{
+  "porco_policial": {
+    "source_file": "porco policial.glb",
+    "source_sha256": "95c2aecfc26f04747e7486c2c007dd0d47b1454779d3561f95eaa164f8b48c79",
+    "source_bytes": 17265992,
+    "optimized_bytes": 1668620,
+    "source_triangles": 253590,
+    "optimized_triangles": 19993,
+    "source_bones": 44,
+    "bones": 44,
+    "bind_height_m": 1.70366370677948,
+    "clips": [
+      "Idle",
+      "Walking",
+      "Running",
+      "Aim",
+      "Fall",
+      "Crouch"
+    ],
+    "reference": "models/gael.glb",
+    "textures": [
+      {
+        "name": "normal",
+        "size": [
+          1024,
+          1024
+        ],
+        "webp_quality": 90
+      },
+      {
+        "name": "base",
+        "size": [
+          1024,
+          1024
+        ],
+        "webp_quality": 88
+      },
+      {
+        "name": "orm",
+        "size": [
+          512,
+          512
+        ],
+        "webp_quality": 82
+      }
+    ],
+    "unmapped_target_bones": [
+      "Bone_045",
+      "Bone_046"
+    ],
+    "unmapped_bone_policy": "Preserve parent world delta and target bind offset; no bone is removed.",
+    "missing_required_bones": [],
+    "floor_calibration": {
+      "Idle": {
+        "foot_vertices": 1129,
+        "min_root_adjustment_m": 0.01198490147988757,
+        "max_root_adjustment_m": 0.01198490147988757,
+        "sole_clearance_m": 0.006
+      },
+      "Walking": {
+        "foot_vertices": 1129,
+        "min_root_adjustment_m": -0.05361650965654511,
+        "max_root_adjustment_m": 0.05217048318012863,
+        "sole_clearance_m": 0.006
+      },
+      "Running": {
+        "foot_vertices": 1129,
+        "min_root_adjustment_m": -0.1262710530271431,
+        "max_root_adjustment_m": 0.05687582457213859,
+        "sole_clearance_m": 0.006
+      },
+      "Aim": {
+        "foot_vertices": 1129,
+        "min_root_adjustment_m": 0.008955993529284379,
+        "max_root_adjustment_m": 0.008955993529284379,
+        "sole_clearance_m": 0.006
+      }
+    },
+    "notes": [
+      "Entire mesh is decimated; no body or clothing components are removed.",
+      "UV coordinates, base color, normal and metallic/roughness texture roles are preserved.",
+      "Horizontal root travel belongs to the runtime controller.",
+      "NPC bind height normalized from 1.87m; pig already 1.70m.",
+      "Generic accessory bones inherit their parent motion. Canonical source has detailed fingers absent in some target rigs."
+    ]
+  },
+  "boate": {
+    "source_file": "npc da boate.glb",
+    "source_sha256": "6a57d680e5b8a9ead5985e359b6ccec4ef99b7e15bacb01bc8c903bccdaa63fc",
+    "source_bytes": 5850540,
+    "optimized_bytes": 1005448,
+    "source_triangles": 49304,
+    "optimized_triangles": 13977,
+    "source_bones": 35,
+    "bones": 35,
+    "bind_height_m": 1.6998344659805298,
+    "clips": [
+      "Idle",
+      "Walking",
+      "Running",
+      "Aim",
+      "Fall",
+      "Crouch"
+    ],
+    "reference": "models/gael.glb",
+    "textures": [
+      {
+        "name": "normal",
+        "size": [
+          1024,
+          1024
+        ],
+        "webp_quality": 90
+      },
+      {
+        "name": "base",
+        "size": [
+          1024,
+          1024
+        ],
+        "webp_quality": 88
+      },
+      {
+        "name": "orm",
+        "size": [
+          512,
+          512
+        ],
+        "webp_quality": 82
+      }
+    ],
+    "unmapped_target_bones": [
+      "Bone_016",
+      "Bone_030",
+      "Bone_026",
+      "Bone_025",
+      "Bone_031",
+      "Bone_021",
+      "Bone_020",
+      "Bone_013",
+      "Bone_009"
+    ],
+    "unmapped_bone_policy": "Preserve parent world delta and target bind offset; no bone is removed.",
+    "missing_required_bones": [],
+    "floor_calibration": {
+      "Idle": {
+        "foot_vertices": 798,
+        "min_root_adjustment_m": 0.009502738576442887,
+        "max_root_adjustment_m": 0.009502738576442887,
+        "sole_clearance_m": 0.006
+      },
+      "Walking": {
+        "foot_vertices": 798,
+        "min_root_adjustment_m": -0.05796789900629507,
+        "max_root_adjustment_m": 0.027540399693193385,
+        "sole_clearance_m": 0.006
+      },
+      "Running": {
+        "foot_vertices": 798,
+        "min_root_adjustment_m": -0.16040746134392414,
+        "max_root_adjustment_m": 0.04907533967471461,
+        "sole_clearance_m": 0.006
+      },
+      "Aim": {
+        "foot_vertices": 798,
+        "min_root_adjustment_m": 0.005845662489250888,
+        "max_root_adjustment_m": 0.005845662489250888,
+        "sole_clearance_m": 0.006
+      }
+    },
+    "notes": [
+      "Entire mesh is decimated; no body or clothing components are removed.",
+      "UV coordinates, base color, normal and metallic/roughness texture roles are preserved.",
+      "Horizontal root travel belongs to the runtime controller.",
+      "NPC bind height normalized from 1.87m; pig already 1.70m.",
+      "Generic accessory bones inherit their parent motion. Canonical source has detailed fingers absent in some target rigs."
+    ]
+  }
+}
