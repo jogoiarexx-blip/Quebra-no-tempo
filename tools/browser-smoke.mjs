@@ -20,8 +20,8 @@ try{
     if(document.pointerLockElement){const released=new Promise(r=>document.addEventListener('pointerlockchange',r,{once:true}));document.exitPointerLock();await released;}
     QNT.input.freeLook=false;QNT.input.touchMode=true;QNT.input.mouseDX=200;QNT.input.mouseDY=-700;QNT.input.keys.add('KeyW');QNT.input.lmb=true;
     QNT.X.toast('QA_OLD_NOTICE',60);QNT.startMission(id,null);return{notice:document.getElementById('toast').textContent,dx:QNT.input.mouseDX,dy:QNT.input.mouseDY,keys:QNT.input.keys.size,lmb:QNT.input.lmb,pitch:QNT.P.pitch};
-   },id);const {notice,...neutral}=cleared;assert.notEqual(notice,'QA_OLD_NOTICE');assert.deepEqual(neutral,{dx:0,dy:0,keys:0,lmb:false,pitch:-.05});await page.waitForTimeout(750);};
- const shot=async name=>{await page.waitForTimeout(250);await page.screenshot({path:`qa/screenshots/${name}.png`});};
+   },id);const {notice,...neutral}=cleared;assert.notEqual(notice,'QA_OLD_NOTICE');assert.deepEqual(neutral,{dx:0,dy:0,keys:0,lmb:false,pitch:-.05});await page.waitForTimeout(750);await page.bringToFront();await page.evaluate(()=>{if(QNT.ui.stack.at(-1)==='pause')QNT.back();});};
+ const shot=async name=>{await page.bringToFront();await page.evaluate(()=>{if(QNT.ui.stack.at(-1)==='pause')QNT.back();if(QNT.ui.mode==='play'&&!QNT.ui.stack.length)QNT.updateCamera(1/60);});await page.waitForTimeout(250);await page.screenshot({path:`qa/screenshots/${name}.png`});};
  for(const id of ['A1-M1','A1-M2','A1-M3']){
   await start(id);
   const info=await page.evaluate(()=>({id:QNT.mission.id,mode:QNT.ui.mode,gate:QNT.gate.group.children.length,actions:Object.keys(QNT.P.actor.actions),programs:QNT.G.renderer.info.programs.length,details:QNT.L.sceneryDetails?.stats}));
@@ -58,7 +58,7 @@ try{
   }
   if(id==='A1-M3'){
    assert.equal(await page.evaluate(()=>QNT.P.eco.unlocked),true);
-   await page.evaluate(()=>{QNT.P.hp=100;QNT.P.iframe=999;QNT.P.body.pos.set(0,.01,7);QNT.P.yaw=0;QNT.P.pitch=.08;});await page.waitForTimeout(250);const view=await page.evaluate(()=>({pitch:QNT.P.pitch,yaw:QNT.P.yaw,dy:QNT.input.mouseDY,locked:QNT.input.locked,free:QNT.input.freeLook,dir:QNT.G.camera.getWorldDirection(QNT.P.fwd.clone()).toArray(),height:QNT.G.camera.position.y-QNT.P.body.pos.y}));assert.ok(Math.abs(view.pitch-.08)<.01&&Math.abs(view.yaw)<.01&&Math.abs(view.dir[1]-Math.sin(.08))<.01&&view.height>.8,JSON.stringify(view));await shot('m3-usina-patio');
+   await page.evaluate(()=>{QNT.P.hp=100;QNT.P.iframe=999;QNT.P.body.pos.set(0,.01,7);QNT.P.yaw=0;QNT.P.pitch=.08;});await page.bringToFront();await page.evaluate(()=>{if(QNT.ui.stack.at(-1)==='pause')QNT.back();QNT.updateCamera(1/60);});await page.waitForTimeout(250);const view=await page.evaluate(()=>({layers:QNT.ui.stack,hidden:document.hidden,pitch:QNT.P.pitch,yaw:QNT.P.yaw,dy:QNT.input.mouseDY,locked:QNT.input.locked,free:QNT.input.freeLook,dir:QNT.G.camera.getWorldDirection(QNT.P.fwd.clone()).toArray(),height:QNT.G.camera.position.y-QNT.P.body.pos.y}));assert.ok(Math.abs(view.pitch-.08)<.01&&Math.abs(view.yaw)<.01&&Math.abs(view.dir[1]-Math.sin(.08))<.01&&view.height>.8,JSON.stringify(view));await shot('m3-usina-patio');
    const result=await page.evaluate(()=>{
     const q=QNT,use=text=>{const i=q.interactables().find(i=>i.text.startsWith(text));if(!i)throw Error('interação ausente '+text);i.use();};
     use('Fechar válvula de resfriamento 1');use('Fechar válvula de resfriamento 2');const first=q.G.S.seals.length,door=q.L.doors.turbine_door.col.enabled;
