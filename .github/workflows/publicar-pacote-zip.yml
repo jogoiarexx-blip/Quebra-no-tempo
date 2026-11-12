@@ -1,0 +1,92 @@
+name: Publicar Quebra no Tempo pelo ZIP
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'QUEBRA_NO_TEMPO_v*.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'quebra-no-tempo-pages'
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Validar e extrair o pacote
+        shell: bash
+        run: |
+          set -euo pipefail
+          arquivo="$(find . -maxdepth 1 -type f -name 'QUEBRA_NO_TEMPO_v*.zip' | sort -V | tail -n 1)"
+          if [[ -z "$arquivo" ]]; then
+            echo 'Nenhum QUEBRA_NO_TEMPO_v*.zip na raiz do repositorio.' >&2
+            exit 1
+          fi
+          unzip -tq "$arquivo"
+          if unzip -Z -1 "$arquivo" | grep -E '(^/|(^|/)\.\.(/|$))'; then
+            echo 'ZIP possui caminho inseguro.' >&2
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/qnt-extraido" "$RUNNER_TEMP/qnt-site"
+          unzip -q "$arquivo" -d "$RUNNER_TEMP/qnt-extraido"
+          origem="$RUNNER_TEMP/qnt-extraido/Quebra-no-tempo"
+          if [[ ! -f "$origem/index.html" ]]; then
+            origem="$RUNNER_TEMP/qnt-extraido"
+          fi
+          for arquivo_obrigatorio in index.html src/main.js src/missions/a1m1.js src/missions/a1m2.js vendor/three/three.module.min.js models/gael.glb models/sol.glb; do
+            test -f "$origem/$arquivo_obrigatorio" || { echo "Faltou $arquivo_obrigatorio" >&2; exit 1; }
+          done
+          grep -q 'type="importmap"' "$origem/index.html"
+          cp -a "$origem"/. "$RUNNER_TEMP/qnt-site/"
+          echo "SITE_ORIGEM=$origem" >> "$GITHUB_ENV"
+
+      - name: Atualizar codigo fonte na main
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' antigo; do
+            case "$antigo" in
+              .github/*|CNAME|.nojekyll) ;;
+              *) rm -f -- "$antigo" ;;
+            esac
+          done < <(git ls-files -z)
+          cp -a "$SITE_ORIGEM"/. ./
+          git add -A
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'feat: publicar pacote Quebra no Tempo atualizado'
+            git push origin HEAD:main
+          fi
+
+      - name: Definir GitHub Pages via Actions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api --method PUT "repos/$GITHUB_REPOSITORY/pages" -f build_type=workflow
+
+      - name: Preparar Pages
+        uses: actions/configure-pages@v5
+
+      - name: Carregar arquivos do jogo
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/qnt-site
+
+      - name: Publicar Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
