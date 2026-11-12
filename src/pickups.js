@@ -78,7 +78,7 @@ function build(type) {
     const mat = new THREE.MeshLambertMaterial({ color: colors[key], emissive: colors[key], emissiveIntensity: key === 'body' ? .12 : .35 });
     const mesh = new THREE.Mesh(geo, mat); mesh.userData.pickupShared = true; root.add(mesh);
   }
-  const halo = new THREE.Mesh(new THREE.RingGeometry(.30, .35, 24), new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: .55, side: THREE.DoubleSide, depthWrite: false }));
+  const halo = new THREE.Mesh(new THREE.RingGeometry(.30, .35, 24), new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: .55, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false }));
   halo.rotation.x = -Math.PI / 2; halo.position.y = -.24; halo.userData.pickupShared = true; root.add(halo);
   return root;
 }

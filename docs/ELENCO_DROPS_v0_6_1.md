@@ -24,7 +24,7 @@ O reptiliano substitui a aparência do E01 nas duas missões. Continuam valendo 
 | Peças cronais | Engrenagem com núcleo | Dentes violetas e núcleo claro |
 | Trovão Duplo | Espingarda de dois canos | Metal e coronha marrom |
 
-Todas as formas usam geometria local, sem novas texturas ou downloads. Partes são mescladas por material; cópias do mesmo recurso compartilham geometria e material. O descarte acontece ao trocar de missão, evitando liberar o buffer de outra cópia ao coletar um item. As malhas medem de 148 a 380 triângulos e usam três ou quatro chamadas de desenho, incluindo o halo. O teste automatizado limita cada tipo a 512 triângulos e quatro chamadas.
+Todas as formas usam geometria local, sem novas texturas ou downloads. Partes são mescladas por material; cópias do mesmo recurso compartilham geometria e material. O descarte acontece ao trocar de missão, evitando liberar o buffer de outra cópia ao coletar um item. As malhas medem de 148 a 380 triângulos e usam três ou quatro chamadas de desenho, incluindo o halo. O teste automatizado limita cada tipo a 512 triângulos e quatro chamadas; os halos planos usam passagem única para evitar desenhar duas vezes o mesmo anel transparente.
 
 ## Sorteio e coleta
 
@@ -38,7 +38,7 @@ Todas as formas usam geometria local, sem novas texturas ou downloads. Partes s�
 
 ## Verificação
 
-- **Executado localmente:** 19 testes Node aprovados, incluindo integridade dos dois GLB, animações, skin, controle agachado, entradas, regras de loot, limites da coleta e geometrias compartilhadas.
+- **Executado localmente:** 20 testes Node aprovados, incluindo integridade dos dois GLB, animações, skin, controle agachado, entradas, regras de loot, limites da coleta e geometrias compartilhadas.
 - **Verificação WebGL no workflow:** duas missões, Jill única no balcão, diálogo de progressão, apagão/CrouchIdle e restauração, coleta real de item fixo, recusa com recurso cheio, morte de reptiliano, drop no chão, peças de drones e limite de objetos. Capturas de Jill, reptiliano e recursos ficam no artefato de QA do workflow.
 - **Limitação local:** o navegador de prévia deste ambiente não disponibilizou contexto WebGL. A aprovação dos testes WebGL deve ser confirmada no workflow associado ao commit.
 - **Não testado:** fixture de checkpoint produzida pela v0.6.0 (a flag e o formato foram preservados e revisados), campanha inteira, FPS e consumo real em aparelhos físicos, conteúdos além das duas missões disponíveis. O sorteio é balanceamento inicial; não representa playtest de campanha.

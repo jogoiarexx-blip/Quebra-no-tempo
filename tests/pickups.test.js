@@ -27,3 +27,11 @@ test('pickups: cópias compartilham geometria/material e descarte é centralizad
  const c=createPickupMesh('medkit');assert.notEqual(c.children[0].geometry,a.children[0].geometry);
  disposePickupAssets();
 });
+
+test('pickups: halos planos usam uma única passagem de transparência',()=>{
+ for(const type of Object.keys(PICKUPS)) {
+  const halo=createPickupMesh(type).children.at(-1);
+  assert.equal(halo.material.forceSinglePass,true,type);
+ }
+ disposePickupAssets();
+});

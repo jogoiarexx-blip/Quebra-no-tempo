@@ -110,6 +110,7 @@ try {
     Object.values(PICKUPS).forEach(d=>{const label=document.createElement('span');label.textContent=d.label;label.style.color='#'+d.color.toString(16).padStart(6,'0');labels.append(label);});document.body.append(labels);
     return {draws:r.info.render.calls,triangles:r.info.render.triangles};
   });
+  assert.ok(gallery.draws<=24,'seis tipos de recurso devem caber em até 24 chamadas de desenho');
   console.log('Galeria de recursos',gallery);await page.screenshot({path:'qa/screenshots/pickups.png'});
   assert.deepEqual(errors,[],'Erros de execução ou compilação WebGL');
 } finally {await browser?.close();server.kill();}

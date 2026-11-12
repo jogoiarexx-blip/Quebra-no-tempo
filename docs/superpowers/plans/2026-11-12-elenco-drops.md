@@ -17,3 +17,5 @@ Progresso: modelos existentes conferidos por hash; Jill e recursos integrados; t
 Revisão independente: nenhum problema crítico/importante. 19 testes confirmados. Ressalva: o smoke testa restauração de checkpoint atual; não há fixture antiga v0.6.0. Comentário e relatório ajustados para explicitar esse limite.
 
 CI inicial confirmou conversa, apagão/restauração, coleta e morte do reptiliano. Falhou na expectativa do teste de drone: o spawn estava acima da cobertura da recepção (3,90 m), onde o drop corretamente pousou a 4,25 m. Reproduzido com os mesmos AABBs. Teste corrigido para setor aberto e adicionada verificação separada da cobertura. Sem alteração no comportamento de produção.
+
+CI corrigido aprovado e site v0.6.1 publicado. Capturas de Jill/reptiliano e galeria inspecionadas. Contagem real da galeria identificou 29 draws por halos transparentes em duas passagens; ajustados para passagem única (anel plano) e acrescentados regressão Node RED→GREEN e orçamento WebGL <=24 draws. Total local: 20 testes.
