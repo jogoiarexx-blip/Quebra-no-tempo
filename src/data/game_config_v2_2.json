@@ -1,0 +1,471 @@
+{
+  "designRevision": "2.2",
+  "status": "proposed-for-prototype-not-playtested",
+  "simulation": {
+    "fixedHz": 60,
+    "maxDeltaSecondsAfterTabReturn": 0.1
+  },
+  "player": {
+    "maxHealth": 100,
+    "maxArmor": 100,
+    "armorAbsorptionFraction": 0.65,
+    "walkMps": 2.8,
+    "runMps": 5.8,
+    "sprintMps": 7.4,
+    "jumpCoyoteMs": 120,
+    "jumpBufferMs": 130
+  },
+  "camera": {
+    "fovDefaultDegrees": 75,
+    "fovRangeDegrees": [
+      65,
+      95
+    ],
+    "shoulderDistanceRangeMeters": [
+      2.7,
+      3.3
+    ]
+  },
+  "graphics": {
+    "quality": {
+      "low": {
+        "renderScale": 0.65
+      },
+      "medium": {
+        "renderScale": 0.85
+      },
+      "high": {
+        "renderScale": 1.0
+      }
+    },
+    "defaultPreset": "medium",
+    "dynamicResolutionDefaultDesktop": false,
+    "desktopFpsGoal": 60,
+    "mobileFpsGoal": 30
+  },
+  "eco": {
+    "historySeconds": 3.0,
+    "sampleHz": 20,
+    "maxSamples": 60,
+    "maxCharges": 2,
+    "rechargeSecondsPerCharge": 25.0,
+    "minimumActivationGapSeconds": 0.8,
+    "sequentialRecharge": true,
+    "invalidDestinationConsumesCharge": false,
+    "restoreHealth": false,
+    "restoreAmmo": false,
+    "restoreLoot": false,
+    "unlockMission": "A1-M2",
+    "teaserMission": "A1-M1",
+    "teaserCharges": 1,
+    "teaserPermanent": false
+  },
+  "weapons": {
+    "minorSlotsPerGun": 2,
+    "signatureSlotsPerGun": 1,
+    "minorCategories": [
+      "control",
+      "situationalPower",
+      "utility"
+    ],
+    "stackMinorCategories": false,
+    "upgradeCurrency": "PecasCronais",
+    "prototypeMinorCosts": [
+      30,
+      50
+    ],
+    "prototypeWeaponIds": [
+      "martelo9",
+      "trovao_duplo"
+    ]
+  },
+  "content": {
+    "totalMissionsGoal": 24,
+    "totalBossesGoal": 6,
+    "totalWeaponsGoal": 12,
+    "missionExitDesign": "continuity_seals_v2_2"
+  },
+  "slice": {
+    "missionId": "A1-M1",
+    "expectedMinutesRange": [
+      18,
+      22
+    ],
+    "sectors": [
+      "z01_garage",
+      "z02_alley",
+      "z03_avenue",
+      "z04_hardware",
+      "z05_vespera_plaza",
+      "z06_walkway",
+      "z07_substation",
+      "z04b_duct"
+    ],
+    "enemyArchetypes": [
+      "E01",
+      "E02",
+      "drone_training"
+    ],
+    "checkpointIds": [
+      "cp00",
+      "cp01",
+      "cp02",
+      "cp03"
+    ],
+    "maxConcurrentRegularEnemies": 4,
+    "totalEncounterEnemiesRange": [
+      12,
+      16
+    ],
+    "exit": {
+      "gateId": "exit_gate_a1m1",
+      "sealsRequired": 2,
+      "sealSources": [
+        {
+          "id": "seal_a1m1_shop",
+          "roomId": "z04_hardware",
+          "grantOn": "generator_state_ON"
+        },
+        {
+          "id": "seal_a1m1_substation",
+          "roomId": "z07_substation",
+          "grantOn": "both_breakers_ON"
+        },
+        {
+          "id": "seal_a1m1_plaza",
+          "roomId": "z05_vespera_plaza",
+          "grantOn": "clock_panel_solved",
+          "optional": true
+        }
+      ],
+      "requiredFlags": [
+        "substation_breaker_a",
+        "substation_breaker_b",
+        "extraction_terminal_armed"
+      ],
+      "requiresInteraction": true
+    }
+  },
+  "missionExit": {
+    "systemId": "continuity_seals",
+    "itemDisplayName": "Selos de Continuidade",
+    "gateDisplayName": "Fenda de Saída",
+    "gateType": "continuity_fissure",
+    "normalSealsRequired": 2,
+    "normalSealsAvailable": 3,
+    "bossSealsRequired": 1,
+    "bossSealsAvailable": 1,
+    "requiresGateInteraction": true,
+    "killAllEnemiesRequired": false,
+    "thirdNormalSealOptional": true,
+    "itemPersistentAcrossMissions": false,
+    "duplicateSealIdsCountOnce": true,
+    "requiresSaveCommitBeforeMissionComplete": true,
+    "grantsMissionRewardOnlyOncePerRun": true,
+    "gateInteractionSeconds": 0.6,
+    "gateTransitionSeconds": 1.2,
+    "requirementsSee": "GDD §46 (v2.2)"
+  },
+  "campaignExits": {
+    "A1-M1": {
+      "name": "Rua Quebrada",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Gerador da loja",
+        "Disjuntores da subestação",
+        "Painel da Praça do Relógio"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Subestação, após ligar os disjuntores",
+      "bossExit": false
+    },
+    "A1-M2": {
+      "name": "Noite de Neon",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Painel de luz do palco",
+        "Backup nos bastidores",
+        "Camarote VIP"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Plataforma de serviço do metrô",
+      "bossExit": false
+    },
+    "A1-M3": {
+      "name": "Usina Norte",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Válvulas de resfriamento",
+        "Sala das turbinas",
+        "Cabine do guindaste"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Terraço junto à chaminé",
+      "bossExit": false
+    },
+    "A1-M4": {
+      "name": "Núcleo de Ruptura",
+      "sealsRequired": 1,
+      "sealsAvailable": 1,
+      "sources": [
+        "Leviatã de Aço derrotado"
+      ],
+      "alternativeSourceIndex": null,
+      "gateLocation": "Plataforma do reator",
+      "bossExit": true
+    },
+    "A2-M1": {
+      "name": "Poeira Alta",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Relojoaria",
+        "Saloon da informante",
+        "Estábulos"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Torre do relógio da cidade",
+      "bossExit": false
+    },
+    "A2-M2": {
+      "name": "Mina Treze",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Perfuratriz desarmada",
+        "Reservatório drenado",
+        "Galeria mineral"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Elevador principal da mina",
+      "bossExit": false
+    },
+    "A2-M3": {
+      "name": "O Trem de Ferro",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Vagão de carga",
+        "Locomotiva neutralizada",
+        "Vagão oculto"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Estação após a ponte",
+      "bossExit": false
+    },
+    "A2-M4": {
+      "name": "Forte Meia-Noite",
+      "sealsRequired": 1,
+      "sealsAvailable": 1,
+      "sources": [
+        "Marechal Ferrugem derrotado"
+      ],
+      "alternativeSourceIndex": null,
+      "gateLocation": "Fornalha da fortaleza",
+      "bossExit": true
+    },
+    "A3-M1": {
+      "name": "Muralhas Partidas",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Torre de vigia",
+        "Libertação dos prisioneiros",
+        "Poço da vila"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Portão da muralha libertada",
+      "bossExit": false
+    },
+    "A3-M2": {
+      "name": "Bosque dos Sinos",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Estalagem da trupe",
+        "Mosteiro dos sinos",
+        "Cripta oculta"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Campanário desativado",
+      "bossExit": false
+    },
+    "A3-M3": {
+      "name": "Catedral do Relâmpago",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Primeiro conjunto de vitrais",
+        "Condutor dos para-raios",
+        "Passagem do claustro"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Terraço superior da catedral",
+      "bossExit": false
+    },
+    "A3-M4": {
+      "name": "O Bispo de Ferro",
+      "sealsRequired": 1,
+      "sealsAvailable": 1,
+      "sources": [
+        "Bispo de Ferro derrotado"
+      ],
+      "alternativeSourceIndex": null,
+      "gateLocation": "Salão de julgamento",
+      "bossExit": true
+    },
+    "A4-M1": {
+      "name": "Portões da Arena",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Oficina do inventor",
+        "Portão de serviço",
+        "Catacumba do mercado"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Portões internos do anfiteatro",
+      "bossExit": false
+    },
+    "A4-M2": {
+      "name": "Sob o Coliseu",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Comporta de drenagem",
+        "Celas libertadas",
+        "Cofre alagado"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Galeria subterrânea de saída",
+      "bossExit": false
+    },
+    "A4-M3": {
+      "name": "Aqueduto Partido",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Canal superior",
+        "Desvio de água da cidade",
+        "Pedreira lateral"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Plataforma sobre o aqueduto",
+      "bossExit": false
+    },
+    "A4-M4": {
+      "name": "Sol de Bronze",
+      "sealsRequired": 1,
+      "sealsAvailable": 1,
+      "sources": [
+        "Centurião Hélio derrotado"
+      ],
+      "alternativeSourceIndex": null,
+      "gateLocation": "Centro da arena circular",
+      "bossExit": true
+    },
+    "A5-M1": {
+      "name": "Neon de Ruína",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Contato no clube clandestino",
+        "Acesso à torre",
+        "Estufa suspensa"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Elevador blindado da torre",
+      "bossExit": false
+    },
+    "A5-M2": {
+      "name": "Laboratório sem Céu",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Memória de Íris recuperada",
+        "Ala magnética estabilizada",
+        "Cofre de pesquisa"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Sala segura do laboratório",
+      "bossExit": false
+    },
+    "A5-M3": {
+      "name": "A Torre Hélix",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Servidor principal",
+        "Plataforma externa",
+        "Duto de manutenção"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Cobertura da Torre Hélix",
+      "bossExit": false
+    },
+    "A5-M4": {
+      "name": "O Último Protocolo",
+      "sealsRequired": 1,
+      "sealsAvailable": 1,
+      "sources": [
+        "Sentinela Quântico derrotado"
+      ],
+      "alternativeSourceIndex": null,
+      "gateLocation": "Hangar do reator",
+      "bossExit": true
+    },
+    "A6-M1": {
+      "name": "Estilhaços",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Rua de época fundida",
+        "Sala invertida",
+        "Monumento de cronologia"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Limite dos fragmentos urbanos",
+      "bossExit": false
+    },
+    "A6-M2": {
+      "name": "Arquivo de Quem Nunca Foi",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Arquivo de registros",
+        "Origem de Íris restaurada",
+        "Sala dos nomes apagados"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Vestíbulo das memórias",
+      "bossExit": false
+    },
+    "A6-M3": {
+      "name": "Contagem Regressiva",
+      "sealsRequired": 2,
+      "sealsAvailable": 3,
+      "sources": [
+        "Primeira dupla de núcleos",
+        "Núcleos finais estabilizados",
+        "Canal de manutenção"
+      ],
+      "alternativeSourceIndex": 2,
+      "gateLocation": "Sala de convergência",
+      "bossExit": false
+    },
+    "A6-M4": {
+      "name": "Minuto Zero",
+      "sealsRequired": 1,
+      "sealsAvailable": 1,
+      "sources": [
+        "Arconte Mnemós derrotado"
+      ],
+      "alternativeSourceIndex": null,
+      "gateLocation": "Fenda de Restituição no núcleo do Limbo",
+      "bossExit": true
+    }
+  }
+}

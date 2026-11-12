@@ -1,0 +1,3 @@
+Coloque aqui os GLB originais para refazer os modelos com "npm run models":
+  principal.glb
+  vixen.glb   (Crimson_Vixen_animacoes_corrigidas.glb renomeado)

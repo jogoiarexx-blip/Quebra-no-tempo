@@ -1,0 +1,150 @@
+// Carrega os GLB corrigidos (public/models) e cria atores animados.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+
+export const assets = {};
+export async function loadCharacters(onProgress) {
+  const loader = new GLTFLoader();
+  const base = import.meta.env.BASE_URL;
+  const names = ['gael', 'sol'];
+  let done = 0;
+  await Promise.all(names.map(async (n) => {
+    const g = await loader.loadAsync(`${base}models/${n}.glb`);
+    g.scene.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; if (o.material.map) o.material.map.anisotropy = 4; o.material.metalness = Math.min(o.material.metalness, 0.3); } });
+    const clips = {}; g.animations.forEach((c) => (clips[c.name] = c));
+    let material = null; g.scene.traverse((o) => { if (o.isMesh) material = o.material; });
+    assets[n] = { scene: g.scene, clips, material };
+    onProgress(++done / names.length);
+  }));
+  await loadMasks(`${base}models/sol_masks.png`);
+  // modelos próprios de inimigos (opcional): public/models/enemies/manifest.json
+  try {
+    const man = await (await fetch(`${base}models/enemies/manifest.json`)).json();
+    for (const id of ['E01', 'E02']) if (man[id]) {
+      const g = await loader.loadAsync(`${base}models/enemies/${man[id]}`); const clips = {}; g.animations.forEach((c) => (clips[c.name] = c));
+      g.scene.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; } });
+      assets[id] = { scene: g.scene, clips, material: null, custom: true };
+    }
+  } catch (e) { console.warn('manifest de inimigos indisponível', e); }
+}
+
+// ---------- figurinos por máscara (reuso da dançarina com roupas diferentes) ----------
+// sol_masks.png (2:1, opaco): metade esquerda R = tecido, G = couro/sapatos, B = cabelo; metade direita R = meia arrastão
+export const OUTFITS = {
+  sol: null,                                                                                       // original: vermelho e preto
+  lux: { fabric: '#1e9bff', leather: '#f2f4f8', hair: '#e8d9a8', stockings: '#bfe6ff' },           // azul neon, couro branco, loira
+  ambar: { fabric: '#ffb020', leather: '#3a1d0c', hair: '#7a2a12', stockings: '#3a1d0c' },         // dourado, couro marrom, ruiva
+  violeta: { fabric: '#b04cff', leather: '#17171c', hair: '#ff5fc8', stockings: '#ff5fc8' },       // roxo, cabelo rosa
+  esmeralda: { fabric: '#18c27a', leather: '#d8dde4', hair: '#101014', stockings: null },          // verde, couro prata, sem meia
+};
+let maskData = null;
+const hex = (h) => [parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255];
+export function outfitMaterial(assetName, outfitId) {
+  const o = OUTFITS[outfitId], src = assets[assetName].material;
+  if (!o || !maskData) return src;
+  const size = maskData.width, c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(src.map.image, 0, 0, size, size);
+  const img = g.getImageData(0, 0, size, size), d = img.data, m = maskData.data;
+  // canal -> [cor, ganho, piso]: a luminância original modula a cor nova (preserva dobras e brilho)
+  const ch = [[o.fabric, 2.3, 0.1], [o.leather, 5, 0.18], [o.hair, 6, 0.16], [o.stockings, 0.6, 0.35]].map(([col, gain, lift]) => (col ? [hex(col), gain, lift] : null));
+  for (let i = 0; i < d.length; i += 4) {
+    const lum = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) / 255;
+    for (let k = 0; k < 4; k++) {
+      const w = m[i + k] / 255; if (w < 0.02 || !ch[k]) { if (k === 3 && w > 0.02 && !ch[k] && o.stockings === null) { /* remove a meia: clareia para o tom da pele vizinha */ d[i] = Math.min(255, d[i] + 60 * w); d[i + 1] = Math.min(255, d[i + 1] + 38 * w); d[i + 2] = Math.min(255, d[i + 2] + 26 * w); } continue; }
+      const [col, gain, lift] = ch[k], t = Math.min(1, lift + lum * gain);
+      d[i] += (col[0] * t * 255 - d[i]) * w; d[i + 1] += (col[1] * t * 255 - d[i + 1]) * w; d[i + 2] += (col[2] * t * 255 - d[i + 2]) * w;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(c); tex.flipY = false; tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const mat = src.clone(); mat.map = tex; return mat;
+}
+async function loadMasks(url) {
+  try {
+    const im = new Image(); im.src = url; await im.decode();
+    const size = im.height, c = document.createElement('canvas'); c.width = im.width; c.height = size; const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+    const a = g.getImageData(0, 0, size, size), b = g.getImageData(size, 0, size, size);
+    for (let i = 0; i < a.data.length; i += 4) a.data[i + 3] = b.data[i];      // 4º canal = meia arrastão (metade direita do PNG)
+    maskData = a;
+  } catch (e) { console.warn('máscaras de figurino indisponíveis', e); }
+}
+
+const UPPER = ['Spine2', 'Neck', 'Head', 'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand'];
+const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3(), _ax = new THREE.Vector3();
+
+export class Actor {
+  constructor(assetName, opts = {}) {
+    const a = assets[assetName];
+    this.root = new THREE.Group();
+    this.model = SkeletonUtils.clone(a.scene);
+    this.model.scale.setScalar(opts.scale || 1);
+    this.root.add(this.model);
+    this.bones = {};
+    this.model.traverse((o) => {
+      if (o.isBone) this.bones[o.name.replace('mixamorig', '').replace(':', '')] = o;
+      if (o.isMesh) {
+        this.mesh = o; o.frustumCulled = false;
+        if (opts.tint !== undefined || opts.hologram) {
+          o.material = opts.hologram ? new THREE.MeshBasicMaterial({ color: opts.hologram, transparent: true, opacity: 0.5, depthWrite: false }) : o.material.clone();
+          if (opts.tint !== undefined) o.material.color.set(opts.tint);
+        }
+      }
+    });
+    if (opts.outfit) this.mesh.material = outfitMaterial(assetName, opts.outfit);
+    this.baseMaterial = this.mesh.material;
+    this.mixer = new THREE.AnimationMixer(this.model);
+    this.actions = {};
+    for (const [name, clip] of Object.entries(a.clips)) {
+      const act = this.mixer.clipAction(clip); act.enabled = true; act.setEffectiveWeight(0); act.play(); this.actions[name] = act;
+    }
+    this.current = null; this.weights = {};
+    // pose de mira (quaternions locais do clipe "Aim") para sobrepor no tronco/braços
+    this.aimPose = {}; this.aimW = 0; this.aimTarget = 0; this.pitch = 0;
+    if (a.clips.Aim) for (const tr of a.clips.Aim.tracks) {
+      const bn = tr.name.split('.')[0].replace('mixamorig', '');
+      if (tr.name.endsWith('.quaternion') && UPPER.includes(bn)) this.aimPose[bn] = new THREE.Quaternion().fromArray(tr.values, 0);
+    }
+    this.play(opts.start || 'Idle', 0);
+    if (opts.helmet) this.addHelmet(opts.helmet);
+  }
+  addHelmet(color) {
+    this.root.updateMatrixWorld(true);
+    const head = this.bones.Head; if (!head) return;
+    const g = new THREE.Group();
+    const shell = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.33), new THREE.MeshLambertMaterial({ color: 0x1b1f27 })); g.add(shell);
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.07, 0.1), new THREE.MeshBasicMaterial({ color })); visor.position.set(0, 0.02, 0.14); g.add(visor);
+    head.getWorldPosition(_v); g.position.copy(_v).add(new THREE.Vector3(0, 0.1 * this.model.scale.y, 0.02));
+    this.root.add(g); head.attach(g); this.visor = visor;
+  }
+  play(name, fade = 0.15, timeScale = 1) {
+    if (!this.actions[name]) name = 'Idle';
+    this.actions[name].timeScale = timeScale;
+    if (this.current === name) return;
+    this.current = name; this.fade = Math.max(fade, 1e-3);
+    if (fade === 0) for (const n in this.actions) { this.weights[n] = n === name ? 1 : 0; this.actions[n].setEffectiveWeight(this.weights[n]); }
+  }
+  update(dt) {
+    for (const n in this.actions) {
+      const target = n === this.current ? 1 : 0, w = this.weights[n] ?? 0;
+      const nw = w + Math.sign(target - w) * Math.min(Math.abs(target - w), dt / this.fade);
+      if (nw !== w) { this.weights[n] = nw; this.actions[n].setEffectiveWeight(nw); }
+    }
+    this.mixer.update(dt);
+    this.aimW += (this.aimTarget - this.aimW) * Math.min(1, dt * 14);
+    if (this.aimW > 0.01) {
+      for (const bn in this.aimPose) { const b = this.bones[bn]; if (b) b.quaternion.slerp(this.aimPose[bn], this.aimW); }
+      // inclina o tronco para cima/baixo acompanhando a mira (rotação em espaço do mundo no osso Spine1)
+      const sp = this.bones.Spine1;
+      if (sp && Math.abs(this.pitch) > 0.01) {
+        this.root.updateMatrixWorld(true);
+        sp.parent.getWorldQuaternion(_q);
+        _ax.set(1, 0, 0).applyQuaternion(this.root.getWorldQuaternion(_q2));
+        _q2.setFromAxisAngle(_ax, -this.pitch * 0.75 * this.aimW);
+        sp.quaternion.premultiply(_q.clone().invert().multiply(_q2).multiply(_q));
+      }
+    }
+  }
+  handPos(out, side = 'Right') { const b = this.bones[side + 'Hand']; this.root.updateMatrixWorld(true); return b.getWorldPosition(out); }
+  dispose() { this.mixer.stopAllAction(); this.root.removeFromParent(); }
+}

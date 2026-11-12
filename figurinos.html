@@ -1,0 +1,16 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Figurinos — Quebra no Tempo</title>
+<body style="margin:0;background:#14161c;overflow:hidden"><script type="module">
+// Visualizador dos figurinos gerados por máscara (dev): abre em /figurinos.html
+import * as THREE from 'three';
+import { loadCharacters, Actor, OUTFITS } from './src/characters.js';
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(innerWidth, innerHeight); r.outputColorSpace = THREE.SRGBColorSpace; document.body.appendChild(r.domElement);
+const sc = new THREE.Scene(); sc.background = new THREE.Color(0x1a1d25);
+sc.add(new THREE.HemisphereLight(0xffffff, 0x555566, 2.4)); const d = new THREE.DirectionalLight(0xffffff, 2); d.position.set(2, 4, 5); sc.add(d);
+const cam = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 50); cam.position.set(0, 1.0, 8.6); cam.lookAt(0, 0.9, 0);
+await loadCharacters(() => {});
+const ids = Object.keys(OUTFITS), actors = ids.map((id, i) => { const a = new Actor('sol', { outfit: id }); a.root.position.x = (i - (ids.length - 1) / 2) * 1.25; a.play(['Idle', 'Superlove_Pop_Dance', 'All_Night_Dance', 'Not_Your_Mom', 'Idle'][i], 0); sc.add(a.root); return a; });
+const clock = new THREE.Clock(); const still = new URLSearchParams(location.search).get('still');
+function loop() { const dt = clock.getDelta(); actors.forEach((a) => a.update(still ? 0 : dt)); r.render(sc, cam); requestAnimationFrame(loop); }
+if (still) actors.forEach((a) => a.update(parseFloat(still)));
+loop(); window.done = true;
+</script></body></html>
