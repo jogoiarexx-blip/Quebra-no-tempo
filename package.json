@@ -1,8 +1,8 @@
 {
   "name": "quebra-no-tempo",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
-  "description": "QUEBRA NO TEMPO \u2014 Ato I: A1-M1 Rua Quebrada e A1-M2 Noite de Neon (Three.js, sem etapa de build)",
+  "description": "QUEBRA NO TEMPO — Ato I: A1-M1 Rua Quebrada e A1-M2 Noite de Neon (Three.js, sem etapa de build)",
   "scripts": {
     "dev": "python3 -m http.server 8080",
     "models": "python3 tools/build_models.py assets_src/principal.glb assets_src/vixen.glb models",

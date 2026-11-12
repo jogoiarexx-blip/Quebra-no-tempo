@@ -2817,3 +2817,8 @@ O arquivo operacional de parâmetros e matriz de 24 fases é `QUEBRA_NO_TEMPO_GA
 | `EXIT-012` | terminar A6-M4 com e sem requisitos do final extra | a fenda funciona nos dois casos e o epílogo correto é selecionado |
 
 **Definição de concluído do sistema:** teste E2E do menu até a tela de resultados da A1-M1; salvar/recarregar em pontos variados; dois percursos independentes (A+B e A+C); não existir P0/P1 de coleta, interação ou recompensa; métricas de desempenho e acessibilidade medidas em dispositivos reais. **Nenhum destes testes foi executado pelo fato de constar no GDD.**
+
+
+## Registro de implementação — elenco v0.6.0 (12/11/2026)
+
+Jill adicionada como NPC não hostil no balcão do Véspera em A1-M2, mantendo Basso e os gatilhos da missão. O modelo reptiliano otimizado substitui a aparência do E01 Saqueador Cronal nas missões disponíveis, com os mesmos parâmetros de combate. [Arquivos, medidas e evidências](ELENCO_OTIMIZADO_v0_6_0.md). Este registro não declara as outras 22 missões ou os demais arquétipos como implementados.

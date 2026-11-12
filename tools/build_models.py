@@ -125,7 +125,7 @@ class Rig:
             if i in s.IB: s.order.append(i)
             for c in s.N[i].get('children', []): visit(c)
         visit(s.j['scenes'][0]['nodes'][0])
-        s.anims = {a['name']: a for a in s.j['animations']}
+        s.anims = {a['name']: a for a in s.j.get('animations', [])}
 
     def channels(s, an):
         a = s.anims[an]; ch = {}; t = None

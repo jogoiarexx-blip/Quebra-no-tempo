@@ -235,6 +235,7 @@ function build(scene, X) {
 
   // ---------------- NPCs: equipe, público e performers (mesmos 2 modelos, figurinos por máscara) ----------------
   L.basso = X.npc({ name: 'Basso', outfit: 'basso', x: -12.4, z: 31, yaw: Math.PI / 2 });
+  L.jill = X.npc({ name: 'Jill', asset: 'jill', scale: 1, x: -12.2, z: 34.2, yaw: Math.PI / 2 });
   L.dante = X.npc({ name: 'Dante', outfit: 'dante', x: 2.9, z: 12.3, yaw: Math.PI });
   L.cifra = X.npc({ name: 'Cifra', outfit: 'cifra', ledMask: 0x35e6ff, x: 11.6, y: 2.4, z: 46.6, yaw: -Math.PI / 2, endYaw: Math.PI, endAnim: 'Crouch' });
   L.performers = [['Sol', 'sol', 0, 36.4, 0], ['Rubi', 'lux', -5, 46.6, 1], ['Maya', 'ambar', 5, 46.6, 2], ['Jade', 'violeta', 0, 48.2, 1]].map(([name, outfit, x, z, off]) => { const n = X.npc({ name, asset: 'sol', outfit, x, y: 1.0, z, yaw: Math.PI, performer: true }); n.off = off; return n; });
@@ -253,6 +254,7 @@ function blackout(X) {
   L.performers.forEach((n, i) => n.panic([[n.home.x, 1, 49.5], [0, 1, 50.2]], 0.3 + i * 0.2));
   L.cifra.panic([[11.6, 2.4, 41], [13.5, 2.4, 40.5], [13.5, 0, 34], [14.2, 0, 31]], 0.4, true);      // some pela porta de serviço; reaparece no estúdio
   L.basso.actor.play('Crouch', 0.2); L.basso.o.anim = null;
+  L.jill.actor.play('CrouchIdle', 0.18); L.jill.o.anim = null;
   X.say('MARA', 'Apagaram o palco! Dante, tira o público pela frente. Ninguém volta pra dentro!');
   X.say('ÍRIS-9', 'Gael, o pulso está rasgando o bracelete. O console analógico do Cifra aguenta — estabilize ali, agora.');
 }
@@ -331,7 +333,8 @@ export default {
       for (const n of [...L.patrons, ...L.performers]) n.hideSafe();
       if (f.invasion_cleared) { L.cifra.place(12.5, 0, 59.5, Math.PI); L.cifra.actor.play('Crouch', 0); } else L.cifra.hideSafe(); L.cifra.o.anim = null;
       L.basso.actor.play('Crouch', 0); L.basso.o.anim = null;
-    } else { L.cifra.o.anim = 'Idle'; L.basso.o.anim = 'Idle'; }
+      L.jill.actor.play('CrouchIdle', 0); L.jill.o.anim = null;
+    } else { L.cifra.o.anim = 'Idle'; L.basso.o.anim = 'Idle'; L.jill.o.anim = 'Idle'; }
     applyLighting(X);
     X.audio.setTrack(S.jukebox); X.audio.setMusic(!f.blackout); X.audio.setAlarm(!!f.blackout && !f.invasion_cleared);
   },

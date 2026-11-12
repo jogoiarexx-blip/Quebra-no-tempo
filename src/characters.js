@@ -9,12 +9,12 @@ export const assets = {};
 const MODELS = 'models/';     // relativo à página: funciona em qualquer subpasta do GitHub Pages
 export async function loadCharacters(onProgress) {
   const loader = new GLTFLoader();
-  const names = ['gael', 'sol'];
+  const names = ['gael', 'sol', 'jill'];
   let done = 0;
   await Promise.all(names.map(async (n) => {
     const g = await loader.loadAsync(`${MODELS}${n}.glb`);
     g.scene.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; if (o.material.map) o.material.map.anisotropy = 4; o.material.metalness = Math.min(o.material.metalness, 0.3); } });
-    if (n === 'gael') g.animations.push(...makeCrouchClips(g.scene, g.animations.find(c => c.name === 'Idle'), g.animations.find(c => c.name === 'Aim')));
+    if (n === 'gael' || n === 'jill') g.animations.push(...makeCrouchClips(g.scene, g.animations.find(c => c.name === 'Idle'), g.animations.find(c => c.name === 'Aim')));
     const clips = {}; g.animations.forEach((c) => (clips[c.name] = c));
     let material = null; g.scene.traverse((o) => { if (o.isMesh) material = o.material; });
     assets[n] = { scene: g.scene, clips, material };
@@ -26,7 +26,7 @@ export async function loadCharacters(onProgress) {
     const man = await (await fetch(`${MODELS}enemies/manifest.json`)).json();
     for (const id of ['E01', 'E02']) if (man[id]) {
       const g = await loader.loadAsync(`${MODELS}enemies/${man[id]}`); const clips = {}; g.animations.forEach((c) => (clips[c.name] = c));
-      g.scene.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; } });
+      g.scene.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; if (o.material.map) o.material.map.anisotropy = 4; o.material.metalness = Math.min(o.material.metalness, 0.3); } });
       assets[id] = { scene: g.scene, clips, material: null, custom: true };
     }
   } catch (e) { console.warn('manifest de inimigos indisponível', e); }
@@ -100,6 +100,7 @@ const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.
 export class Actor {
   constructor(assetName, opts = {}) {
     const a = assets[assetName];
+    this.assetName = assetName;
     this.root = new THREE.Group();
     this.model = SkeletonUtils.clone(a.scene);
     this.model.scale.setScalar(opts.scale || 1);

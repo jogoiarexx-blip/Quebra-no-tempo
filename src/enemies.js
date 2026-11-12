@@ -44,7 +44,7 @@ class Enemy {
     this.body = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), hw: 0.36, h: 1.8, grounded: true };
     if (type === 'DRONE') { this.drone = makeDrone(); this.root = this.drone.root; }
     else {
-      this.actor = assets[type] ? new Actor(type, {})     // GLB próprio do inimigo (manifest.json)
+      this.actor = assets[type] ? new Actor(type, { scale: 1.8 / 1.7 })     // GLB próprio do inimigo (manifest.json)
         : new Actor('gael', { scale: type === 'E02' ? 1.0 : 1.03, outfit: type === 'E02' ? 'sniper' : 'merc', helmet: type === 'E02' ? 0xff2030 : 0xffb030, armor: type === 'E02' ? 0x4a3a66 : 0x3a4250 });
       this.root = this.actor.root;
       const gm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, type === 'E02' ? 0.9 : 0.5).translate(0, 0, type === 'E02' ? 0.35 : 0.2), new THREE.MeshLambertMaterial({ color: 0x15171b }));

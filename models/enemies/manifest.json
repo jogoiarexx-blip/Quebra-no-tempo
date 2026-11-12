@@ -1,5 +1,5 @@
 {
-  "_comentario": "Quando o GLB de um inimigo estiver pronto, coloque-o nesta pasta e aponte aqui. Ex.: \"E01\": \"soldado_lagarto.glb\". Enquanto for null, o jogo usa o substituto (humanoide de capacete / drone).",
-  "E01": null,
+  "_comentario": "E01 usa o reptiliano otimizado; E02 mantém o atirador atual.",
+  "E01": "reptiliano.glb",
   "E02": null
 }

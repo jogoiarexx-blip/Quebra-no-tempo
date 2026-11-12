@@ -1,7 +1,7 @@
 # Elenco de inimigos — artes de conceito recebidas
 
 As seis artes estão em `docs/conceitos_inimigos/`. São imagens 2D em T-pose; **ainda não existem como modelos 3D**,
-então o jogo segue com substitutos. Proposta de encaixe nos arquétipos do GDD §6.1:
+o E01 agora usa o reptiliano otimizado recebido em GLB; os outros tipos ainda usam substitutos. Proposta de encaixe nos arquétipos do GDD §6.1:
 
 | Arte | Papel sugerido | Arquétipo do GDD | Onde entra |
 |---|---|---|---|

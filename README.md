@@ -1,4 +1,4 @@
-> **v0.5.0:** nova fenda, animações de agachado e controles móveis nas duas missões. [Detalhes e testes](docs/MELHORIAS_FENDA_AGACHADO_v0_5_0.md).
+> **v0.6.0:** Jill no balcão do Véspera e reptiliano no E01, com modelos otimizados. [Detalhes e medidas](docs/ELENCO_OTIMIZADO_v0_6_0.md).
 
 # QUEBRA NO TEMPO — Ato I: A1-M1 "Rua Quebrada" e A1-M2 "Noite de Neon"
 
@@ -62,8 +62,8 @@ Novidades desta versão: ver `CHANGELOG.md`.
 ## O que NÃO está feito (para não parecer mais do que é)
 
 - Cenário é *greybox* texturizado por código: não há arte final de ambientes nem modelos de armas/veículos.
-- Inimigos usam substitutos (o humanoide do protagonista com roupa de mercenário, capacete e placas, e um drone geométrico) até os GLB das
-  artes em `docs/conceitos_inimigos/` existirem — ver `docs/ELENCO_INIMIGOS.md`.
+- O E01 usa o reptiliano otimizado; o E02 ainda usa o humanoide com roupa de atirador e o drone é geométrico. Os demais modelos de
+  `docs/conceitos_inimigos/` continuam pendentes — ver `docs/ELENCO_INIMIGOS.md`.
 - Não implementados: vault dedicado (o salto cobre), consumível rápido, mapa (Tab), remapeamento, interface de toque/mobile,
   hub, upgrades de arma, mesa de sinuca, A1-M3 em diante. Mara não aparece em cena (só pelo rádio): não há modelo
   feminino além do da dançarina.

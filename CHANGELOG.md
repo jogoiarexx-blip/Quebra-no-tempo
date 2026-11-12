@@ -1,3 +1,7 @@
+# v0.6.0 — 12/11/2026
+
+Jill adicionada atrás do balcão da boate, preservando Basso e a missão. Reptiliano substitui o E01 nas duas fases. Jill: 16,06 → 2,33 MB; reptiliano: 12,00 → 1,65 MB e 108.498 → 20.000 triângulos. Animações adaptadas aos rigs, texturas WebP e testes do elenco incluídos. [Detalhes](docs/ELENCO_OTIMIZADO_v0_6_0.md).
+
 # v0.5.0 — 12/11/2026
 
 Fenda com shader, partículas, fragmentos instanciados e luz local. CrouchIdle/CrouchWalk com pés apoiados e cadência por velocidade. Materiais com relevo e integração dos controles móveis preservando A1-M2. Onze testes automatizados aprovados; inspeção WebGL pendente por bloqueio de inicialização do navegador.

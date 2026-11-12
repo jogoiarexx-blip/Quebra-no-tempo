@@ -1,0 +1,66 @@
+{
+  "jill": {
+    "source_sha256": "8c731c800d01322abef8739f7b818ead7078f6770dd80b95c02f5b7efdeccf9a",
+    "source_bytes": 16063592,
+    "optimized_bytes": 2333680,
+    "source_triangles": 10265,
+    "optimized_triangles": 10265,
+    "bones": 66,
+    "clips": [
+      "Idle",
+      "Walking",
+      "Running",
+      "Aim",
+      "Fall",
+      "Crouch",
+      "Flirty_Strut",
+      "Walking_Woman",
+      "Wave_One_Hand",
+      "open_door_4"
+    ],
+    "textures": [
+      [
+        1024,
+        1024
+      ],
+      [
+        1024,
+        1024
+      ],
+      [
+        512,
+        512
+      ]
+    ]
+  },
+  "reptilian": {
+    "source_sha256": "78e334e01ea5e688e109e6574e0ff137911f96f3021a86c0d845f8765ffa9d00",
+    "source_bytes": 12001716,
+    "optimized_bytes": 1653672,
+    "source_triangles": 108498,
+    "optimized_triangles": 20000,
+    "bones": 50,
+    "clips": [
+      "Idle",
+      "Walking",
+      "Running",
+      "Aim",
+      "Fall",
+      "Crouch"
+    ],
+    "textures": [
+      [
+        1024,
+        1024
+      ],
+      [
+        1024,
+        1024
+      ],
+      [
+        512,
+        512
+      ]
+    ]
+  }
+}
