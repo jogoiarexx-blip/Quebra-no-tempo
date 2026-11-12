@@ -15,3 +15,5 @@ Andamento: base limpa em a3fbd93; 13/13 testes existentes aprovados. Trabalho em
 Progresso: modelos existentes conferidos por hash; Jill e recursos integrados; testes novos falharam inicialmente por módulos ausentes e depois passaram (19/19 totais). Preservados limites e comportamento dos pickups fixos. Ajuste de decisão: manter esqueleto/animações já otimizados evita uma segunda conversão com perda. Prévia local limitada por WebGL desabilitado; publicação fica protegida pelo smoke do workflow.
 
 Revisão independente: nenhum problema crítico/importante. 19 testes confirmados. Ressalva: o smoke testa restauração de checkpoint atual; não há fixture antiga v0.6.0. Comentário e relatório ajustados para explicitar esse limite.
+
+CI inicial confirmou conversa, apagão/restauração, coleta e morte do reptiliano. Falhou na expectativa do teste de drone: o spawn estava acima da cobertura da recepção (3,90 m), onde o drop corretamente pousou a 4,25 m. Reproduzido com os mesmos AABBs. Teste corrigido para setor aberto e adicionada verificação separada da cobertura. Sem alteração no comportamento de produção.

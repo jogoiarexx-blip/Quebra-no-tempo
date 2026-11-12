@@ -77,11 +77,17 @@ try {
       assert.equal(loot.type,'medkit');assert.equal(loot.amount,20);assert.equal(loot.shape,'medkit');assert.ok(Math.abs(loot.y-.35)<.1);
       const capped=await page.evaluate(()=>{
         const q=QNT,random=Math.random;Math.random=()=>0;
-        try { for(let i=0;i<30;i++)q.G.hooks.onEnemyKilled({type:'DRONE',body:{pos:q.P.body.pos.clone().setY(4)}}); }
+        try { for(let i=0;i<30;i++)q.G.hooks.onEnemyKilled({type:'DRONE',body:{pos:q.P.body.pos.clone().set(0,4,28)}}); }
         finally {Math.random=random;}
         return {count:q.drops.length,types:q.drops.map(d=>d.type),maxY:Math.max(...q.drops.map(d=>d.pos.y))};
       });
       assert.equal(capped.count,24);assert.ok(capped.types.every(t=>t==='pecas'));assert.ok(capped.maxY<.5);
+      const rooftop=await page.evaluate(()=>{
+        const q=QNT,random=Math.random;Math.random=()=>0;
+        try {q.G.hooks.onEnemyKilled({type:'DRONE',body:{pos:q.P.body.pos.clone().set(0,4,18)}});return q.drops.at(-1).pos.y;}
+        finally {Math.random=random;}
+      });
+      assert.ok(Math.abs(rooftop-4.25)<.01,'drone acima da recepção deve soltar peças sobre a cobertura de 3,90 m');
       await page.evaluate(()=>{QNT.restartCheckpoint();});
       assert.equal(await page.evaluate(()=>QNT.drops.length),0);
       await page.waitForTimeout(250);
