@@ -7,7 +7,7 @@ let canvas = null;
 export function initInput(el, onLockLost) {
   canvas = el;
   addEventListener('keydown', (e) => {
-    if (['Space', 'Tab', 'AltLeft', 'AltRight', 'KeyQ', 'KeyE'].includes(e.code)) e.preventDefault();
+    if (['Space', 'Tab', 'AltLeft', 'AltRight', 'KeyQ', 'KeyE', 'KeyF', 'KeyC'].includes(e.code)) e.preventDefault();
     if (!e.repeat) input.pressed.add(e.code);
     input.keys.add(e.code); input.usingPad = false;
   });
@@ -22,11 +22,14 @@ export function initInput(el, onLockLost) {
     const was = input.locked; input.locked = document.pointerLockElement === canvas;
     if (was && !input.locked) onLockLost();
   });
-  document.addEventListener('pointerlockerror', () => { input.freeLook = true; });
+  // Chrome recusa recapturar ~1 s depois de sair com Esc: só tenta de novo no próximo clique (antes travava em modo sem captura)
+  document.addEventListener('pointerlockerror', () => { input.lockError = performance.now(); });
+  if (!el.requestPointerLock) input.freeLook = true;
+  addEventListener('keyup', (e) => { if (e.code === 'AltLeft' || e.code === 'AltRight') e.preventDefault(); });
 }
 export function requestLock() {
   if (!canvas || input.locked) return;
-  try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { input.freeLook = true; }); } catch { input.freeLook = true; }
+  try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { input.lockError = performance.now(); }); } catch { input.lockError = performance.now(); }
 }
 export function releaseLock() { if (document.pointerLockElement) document.exitPointerLock(); }
 export function down(code) { return input.keys.has(code); }

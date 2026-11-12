@@ -1,9 +1,9 @@
 // Estado compartilhado entre módulos (evita dependências circulares).
-import config from './data/game_config_v2_2.json';
-export const CFG = config;
+// O config é lido em runtime (fetch) para o jogo rodar sem etapa de build no GitHub Pages.
+export const CFG = await (await fetch(new URL('./data/game_config_v2_2.json', import.meta.url))).json();
 export const G = {
-  scene: null, camera: null, renderer: null, level: null,
-  settings: { quality: CFG.graphics.defaultPreset, fov: CFG.camera.fovDefaultDegrees, sens: 1, invertY: false, volume: 0.8, music: 0.5, shake: true, attenuate: false, difficulty: 'mercenario', hints: true },
+  scene: null, camera: null, renderer: null, level: null, mission: null,
+  settings: { quality: CFG.graphics.defaultPreset, fov: CFG.camera.fovDefaultDegrees, sens: 1, invertY: false, volume: 0.8, music: 0.5, shake: true, attenuate: false, difficulty: 'mercenario', hints: true, waypoint: true },
   S: null,            // estado da missão (serializável)
   time: 0, shake: 0,
   hooks: {},          // callbacks registrados pelo main (toast, hud, etc.)

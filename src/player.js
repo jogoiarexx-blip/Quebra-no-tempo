@@ -6,7 +6,8 @@ import { moveBody, boxFree, raycast, solidOnly } from './physics.js';
 import { Actor } from './characters.js';
 import { sfx } from './audio.js';
 import { sparks, tracer, flash, shake } from './fx.js';
-import { sectorAt } from './level.js';
+const sectorAt = (p) => (G.mission ? G.mission.sectorAt(p) : 'none');
+const STAND_H = 1.8, CROUCH_H = 1.1, SLIDE_H = 1.0;
 
 const GRAV = 24, JUMP_V = Math.sqrt(2 * GRAV * 1.25);
 export const WEAPONS = {
@@ -21,7 +22,8 @@ export const P = {
   weapons: { martelo9: { have: false, mag: 15 }, trovao_duplo: { have: false, mag: 2 } }, ammo: { ammo9: 0, shells: 0 }, current: null,
   fireCd: 0, reloadT: 0, lastFire: 9, bloom: 0, coyote: 0, jumpBuf: 0, rollT: 0, rollCd: 0, rollDir: new THREE.Vector3(), iframe: 0,
   mantle: null, stepT: 0, inputLock: 0, dead: false, deadT: 0, speed: 0,
-  eco: { buf: [], acc: 0, charges: 0, lastUse: -9, trail: [], teaser: false },
+  eco: { buf: [], acc: 0, charges: 0, lastUse: -9, trail: [], teaser: false, unlocked: false, recharge: 0 },
+  crouch: false, slideT: 0, slideDir: new THREE.Vector3(), meleeCd: 0, meleeT: 0, holster: false,
   aimPoint: new THREE.Vector3(), muzzle: new THREE.Vector3(), camPos: new THREE.Vector3(), fwd: new THREE.Vector3(),
   hitDirs: [],
 };
@@ -50,12 +52,15 @@ export function resetPlayer(snap) {
   P.weapons = JSON.parse(JSON.stringify(snap.weapons || { martelo9: { have: false, mag: 15 }, trovao_duplo: { have: false, mag: 2 } }));
   P.ammo = { ...(snap.ammo || { ammo9: 0, shells: 0 }) }; P.current = snap.current || null;
   P.reloadT = 0; P.fireCd = 0; P.rollT = 0; P.mantle = null; P.iframe = 0; P.bloom = 0; P.inputLock = 0.3;
-  P.eco.buf.length = 0; P.eco.charges = 0; P.eco.teaser = false; P.hitDirs.length = 0; P.ads = false;
+  P.eco.buf.length = 0; P.eco.teaser = false; P.eco.recharge = 0; P.eco.unlocked = !!snap.ecoUnlocked; P.eco.charges = P.eco.unlocked ? CFG.eco.maxCharges : 0;
+  P.hitDirs.length = 0; P.ads = false; P.crouch = false; P.slideT = 0; P.meleeCd = 0; P.meleeT = 0; P.body.h = STAND_H; P.holster = !!snap.holster;
   actor.root.rotation.set(0, P.facing, 0); spin.rotation.set(0, 0, 0); actor.model.rotation.set(0, 0, 0);
   actor.play('Idle', 0); P.camDist = 3;
   showGun();
 }
-function showGun() { for (const k in guns) guns[k].visible = P.current === k; }
+function showGun() { for (const k in guns) guns[k].visible = P.current === k && !P.holster; }
+export function setHolster(v) { P.holster = v; showGun(); }
+export function unlockEco() { P.eco.unlocked = true; P.eco.teaser = false; P.eco.charges = CFG.eco.maxCharges; P.eco.recharge = 0; }
 export function giveWeapon(id) { const w = P.weapons[id]; if (!w.have) { w.have = true; w.mag = WEAPONS[id].mag; } P.current = id; showGun(); }
 export function switchWeapon(id) { if (P.weapons[id] && P.weapons[id].have && P.current !== id) { P.current = id; P.reloadT = 0; P.fireCd = 0.25; showGun(); sfx.reload(); } }
 
@@ -102,6 +107,7 @@ export function useEco() {
   for (let k = 0; k < ghostPool.length; k++) { const m = ghostPool[k]; m.position.lerpVectors(from, _v.set(dest.x, dest.y, dest.z), k / (ghostPool.length - 1)); m.position.y += 0.9; m.visible = true; m.userData.t = 1.5; gi++; }
   e.decoy = { pos: from.clone(), t: 1.5 };
   P.body.pos.set(dest.x, dest.y + 0.02, dest.z); P.body.vel.set(0, 0, 0); P.yaw = dest.yaw; P.facing = dest.yaw;
+  if (e.unlocked && e.charges === CFG.eco.maxCharges) e.recharge = 0;
   e.charges--; e.lastUse = G.time; e.buf.length = 0; sfx.eco(); flash(P.body.pos.clone().setY(P.body.pos.y + 1), 1.2, 0.3, 0x35e6ff);
   G.hooks.onEcoUsed();
   return true;
@@ -139,6 +145,27 @@ function fire(enemies) {
   P.pitch += w.kick * (P.ads ? 0.6 : 1); P.bloom = Math.min(0.03, P.bloom + 0.008); shake(P.current === 'martelo9' ? 0.02 : 0.08);
   if (st.mag <= 0 && P.ammo[w.ammo] > 0) startReload();
 }
+function melee(enemies) {
+  P.meleeCd = 0.7; P.meleeT = 0.3; sfx.punch(); P.facing = P.yaw;   // golpeia para onde a câmera aponta
+  const fx = Math.sin(P.facing), fz = Math.cos(P.facing);
+  let best = null, bd = 2.1;
+  for (const e of enemies.all) {
+    if (!e.active || !e.alive) continue;
+    const dx = e.body.pos.x - P.body.pos.x, dz = e.body.pos.z - P.body.pos.z, d = Math.hypot(dx, dz);
+    if (d < bd && Math.abs(e.body.pos.y - P.body.pos.y) < 1.6 && (dx * fx + dz * fz) / Math.max(d, 0.01) > 0.45) { bd = d; best = e; }
+  }
+  if (best) {
+    const dir = _v.set(best.body.pos.x - P.body.pos.x, 0, best.body.pos.z - P.body.pos.z).normalize();
+    const killed = best.damage(40, 'torso', dir); best.stagger = Math.max(best.stagger, 0.7); best.body.pos.addScaledVector(dir, 0.0);
+    best.knock = dir.clone().multiplyScalar(5);
+    sparks(_v2.copy(best.body.pos).setY(best.body.pos.y + 1.2), 0xffffff, 8, 3, 0.3); shake(0.15); (killed ? sfx.kill : sfx.hit)(); G.hooks.hitMarker(false, killed); G.S.stats.hits++;
+    return;
+  }
+  for (const hy of [1.2, 0.6]) {   // altura do peito e do joelho (grades baixas)
+    const hc = raycast(P.body.pos.x, P.body.pos.y + hy, P.body.pos.z, fx, 0, fz, 1.6, solidOnly);
+    if (hc) { G.hooks.onShootCollider(hc.c, 40, _v.set(P.body.pos.x + fx * hc.t, P.body.pos.y + hy, P.body.pos.z + fz * hc.t)); sparks(_v, 0xffd9a0, 4, 2, 0.2); break; }
+  }
+}
 function startReload() {
   const w = WEAPONS[P.current], st = P.weapons[P.current];
   if (P.reloadT > 0 || st.mag >= w.mag || P.ammo[w.ammo] <= 0) return;
@@ -152,6 +179,8 @@ export function updatePlayer(dt, enemies) {
   for (const h of P.hitDirs) h.t -= dt; while (P.hitDirs.length && P.hitDirs[0].t <= 0) P.hitDirs.shift();
   for (const m of ghostPool) if (m.visible) { m.userData.t -= dt; m.material.opacity = 0.6 * Math.max(0, m.userData.t / 1.5); if (m.userData.t <= 0) m.visible = false; }
   if (P.eco.decoy) { P.eco.decoy.t -= dt; if (P.eco.decoy.t <= 0) P.eco.decoy = null; }
+  if (P.eco.unlocked && P.eco.charges < CFG.eco.maxCharges) { P.eco.recharge += dt; if (P.eco.recharge >= CFG.eco.rechargeSecondsPerCharge) { P.eco.recharge = 0; P.eco.charges++; } }
+  P.meleeCd = Math.max(0, P.meleeCd - dt); P.meleeT = Math.max(0, P.meleeT - dt);
 
   if (P.dead) {
     P.deadT += dt; v.x = v.z = 0; v.y -= GRAV * dt; moveBody(b, dt); actor.root.position.copy(p);
@@ -170,10 +199,11 @@ export function updatePlayer(dt, enemies) {
   const fx = Math.sin(P.yaw), fz = Math.cos(P.yaw), rx = -fz, rz = fx;
   let wx = fx * iz + rx * ix, wz = fz * iz + rz * ix;
   const armed = !!P.current, locked = P.inputLock > 0;
-  P.ads = armed && !locked && (input.rmb || (pad && pad.lt)) && P.state !== 'ROLLING' && P.state !== 'MANTLING';
+  P.ads = armed && !P.holster && !locked && (input.rmb || (pad && pad.lt)) && P.state !== 'ROLLING' && P.state !== 'MANTLING' && P.state !== 'SLIDING';
   const sprint = (down('ShiftLeft') || down('ShiftRight') || (pad && pad.l3)) && iz > 0.5 && !P.ads && b.grounded;
+  const jumpHit0 = hit('Space') || (pad && pad.hit.a);
   const maxSp = P.ads ? 3.2 : sprint ? CFG.player.sprintMps : (down('CapsLock') ? CFG.player.walkMps : CFG.player.runMps);
-  const jumpHit = hit('Space') || (pad && pad.hit.a), jumpHeld = down('Space') || (pad && pad.a);
+  const jumpHit = jumpHit0, jumpHeld = down('Space') || (pad && pad.a);
   if (jumpHit) P.jumpBuf = CFG.player.jumpBufferMs / 1000; else P.jumpBuf = Math.max(0, P.jumpBuf - dt);
   P.coyote = b.grounded ? CFG.player.jumpCoyoteMs / 1000 : Math.max(0, P.coyote - dt);
 
@@ -182,37 +212,48 @@ export function updatePlayer(dt, enemies) {
     const up = Math.min(1, k / 0.65), fw = Math.max(0, (k - 0.5) / 0.5);
     p.set(m.from.x + (m.to.x - m.from.x) * fw, m.from.y + (m.to.y - m.from.y) * up, m.from.z + (m.to.z - m.from.z) * fw);
     if (k >= 1) { P.state = 'GROUNDED'; P.mantle = null; b.grounded = true; v.set(0, 0, 0); }
+  } else if (P.state === 'SLIDING') {
+    P.slideT += dt; const sp = 8.6 - P.slideT * 7; v.x = P.slideDir.x * sp; v.z = P.slideDir.z * sp; v.y -= GRAV * dt; moveBody(b, dt);
+    if (P.slideT >= 0.65 || !b.grounded) { P.state = b.grounded ? 'GROUNDED' : 'AIRBORNE'; P.crouch = true; b.h = CROUCH_H; }
   } else if (P.state === 'ROLLING') {
     P.rollT += dt; v.x = P.rollDir.x * 5.6; v.z = P.rollDir.z * 5.6; v.y -= GRAV * dt; moveBody(b, dt);
     if (P.rollT >= 0.5) { P.state = 'GROUNDED'; P.rollCd = 0.3; }
   } else {
-    // rolamento (Alt/Ctrl/B): ~2,8 m em 0,5 s, com janela de invulnerabilidade
-    if ((hit('AltLeft') || hit('ControlLeft') || hit('KeyC') || (pad && pad.hit.bb)) && b.grounded && P.rollCd <= 0 && !locked) {
+    // rolamento (Alt/Z/B com direção): ~2,8 m em 0,5 s, com janela de invulnerabilidade
+    if ((hit('AltLeft') || hit('KeyZ') || (pad && pad.hit.bb && il > 0.3)) && b.grounded && P.rollCd <= 0 && !locked && !P.crouch) {
       if (il > 0.1) P.rollDir.set(wx, 0, wz).normalize(); else P.rollDir.set(Math.sin(P.facing), 0, Math.cos(P.facing));
       P.state = 'ROLLING'; P.rollT = 0; P.iframe = diff().iframe + 0.05; P.reloadT = 0; P.facing = Math.atan2(P.rollDir.x, P.rollDir.z); sfx.roll();
     }
-    const acc = b.grounded ? 48 : 48 * 0.4, tx = wx * maxSp, tz = wz * maxSp;
+    // C: agachar (alterna) / slide se estiver em sprint. Levantar só se houver espaço acima.
+    if ((hit('KeyC') || (pad && pad.hit.bb && il <= 0.3)) && !locked && b.grounded) {
+      if (sprint && P.speed > 6) { P.state = 'SLIDING'; P.slideT = 0; P.slideDir.set(v.x, 0, v.z).normalize(); b.h = SLIDE_H; P.reloadT = 0; sfx.roll(); }
+      else if (P.crouch) { if (!boxFree(p.x, p.y + 0.02, p.z, b.hw, STAND_H)) { P.crouch = false; b.h = STAND_H; } else G.hooks.toast('Sem espaço para levantar'); }
+      else { P.crouch = true; b.h = CROUCH_H; }
+    }
+    if (P.crouch && (sprint || jumpHit) && !boxFree(p.x, p.y + 0.02, p.z, b.hw, STAND_H)) { P.crouch = false; b.h = STAND_H; }
+    const acc = b.grounded ? 48 : 48 * 0.4, crouchSp = P.crouch ? Math.min(maxSp, 2.4) : maxSp, tx = wx * crouchSp, tz = wz * crouchSp;
     const dvx = tx - v.x, dvz = tz - v.z, dl = Math.hypot(dvx, dvz), stepv = acc * dt;
     if (dl <= stepv) { v.x = tx; v.z = tz; } else { v.x += dvx / dl * stepv; v.z += dvz / dl * stepv; }
-    if (P.jumpBuf > 0 && P.coyote > 0 && !locked) { v.y = JUMP_V; P.jumpBuf = 0; P.coyote = 0; b.grounded = false; sfx.jump(); }
+    if (P.jumpBuf > 0 && P.coyote > 0 && !locked && !P.crouch) { v.y = JUMP_V; P.jumpBuf = 0; P.coyote = 0; b.grounded = false; sfx.jump(); }
     if (!jumpHeld && v.y > 3.2 && !b.grounded) v.y = 3.2;        // salto variável
     v.y -= GRAV * dt; if (v.y < -30) v.y = -30;
     const wasG = b.grounded, vy = v.y;
     const wall = moveBody(b, dt);
     if (b.grounded && !wasG && vy < -6) sfx.land();
     // agarrar borda / subir (autograb moderado)
-    if (!b.grounded && il > 0.3 && v.y < 5.5 && (wall || jumpHeld)) tryMantle(wx / il, wz / il);
+    if (!b.grounded && il > 0.3 && v.y < 5.5 && (wall || jumpHeld) && !P.crouch) tryMantle(wx / il, wz / il);
     if (sprint && P.reloadT > 0) P.reloadT = 0;                  // sprint cancela recarga
-    P.state = b.grounded ? 'GROUNDED' : (P.state === 'MANTLING' ? 'MANTLING' : 'AIRBORNE');
+    if (P.state !== 'ROLLING' && P.state !== 'SLIDING') P.state = b.grounded ? 'GROUNDED' : (P.state === 'MANTLING' ? 'MANTLING' : 'AIRBORNE');   // (antes sobrescrevia o rolamento no mesmo tick)
   }
   P.speed = Math.hypot(v.x, v.z);
   if (b.grounded && P.speed > 2) { P.stepT -= dt * P.speed; if (P.stepT <= 0) { P.stepT = 2.3; sfx.step(); } }
 
   // ---------- armas ----------
-  if (hit('Digit1')) switchWeapon('martelo9'); if (hit('Digit2')) switchWeapon('trovao_duplo');
-  if (input.wheel || (pad && (pad.hit.left || pad.hit.right || pad.hit.y))) switchWeapon(P.current === 'martelo9' ? 'trovao_duplo' : 'martelo9');
+  if (!P.holster && hit('Digit1')) switchWeapon('martelo9'); if (!P.holster && hit('Digit2')) switchWeapon('trovao_duplo');
+  if (!P.holster && (input.wheel || (pad && (pad.hit.left || pad.hit.right || pad.hit.y)))) switchWeapon(P.current === 'martelo9' ? 'trovao_duplo' : 'martelo9');
   if (hit('KeyV') || (pad && pad.hit.down)) P.shoulder *= -1;
-  if (armed) {
+  if ((hit('KeyF') || (pad && pad.r3)) && !locked && P.meleeCd <= 0 && P.state !== 'ROLLING' && P.state !== 'MANTLING' && !P.holster) melee(enemies);
+  if (armed && !P.holster) {
     const w = WEAPONS[P.current], st = P.weapons[P.current];
     if ((hit('KeyR') || (pad && pad.hit.x && !G.hooks.hasPrompt())) && P.state !== 'ROLLING') startReload();
     if (P.reloadT > 0) { P.reloadT -= dt; if (P.reloadT <= 0) { const need = w.mag - st.mag, take = Math.min(need, P.ammo[w.ammo]); st.mag += take; P.ammo[w.ammo] -= take; } }
@@ -230,19 +271,22 @@ export function updatePlayer(dt, enemies) {
   }
 
   // ---------- orientação e animação ----------
-  const combat = armed && (P.ads || P.lastFire < 1.4);
+  const combat = armed && !P.holster && (P.ads || P.lastFire < 1.4 || P.meleeT > 0);
   let tf = P.facing;
   if (P.state === 'ROLLING') tf = Math.atan2(P.rollDir.x, P.rollDir.z); else if (combat) tf = P.yaw; else if (P.speed > 0.5) tf = Math.atan2(v.x, v.z);
   let df = tf - P.facing; df = Math.atan2(Math.sin(df), Math.cos(df)); P.facing += df * Math.min(1, dt * (combat ? 22 : 12));
   actor.root.position.copy(p); actor.root.rotation.y = P.facing;
-  spin.rotation.x = 0; spin.position.y = 0.75;
+  spin.rotation.x = 0; spin.position.y = 0.75; actor.model.position.z = 0;
   if (P.state === 'ROLLING') { actor.play('Crouch', 0.06); spin.rotation.x = (P.rollT / 0.5) * Math.PI * 2; spin.position.y = 0.55; }
   else if (P.state === 'MANTLING') actor.play('Crouch', 0.1);
+  else if (P.state === 'SLIDING') { actor.play('Fall', 0.06); spin.rotation.x = -0.75; spin.position.y = 0.42; }
+  else if (P.crouch && b.grounded) { actor.play('Crouch', 0.12); spin.position.y = 0.75 + (P.speed > 0.4 ? Math.abs(Math.sin(G.time * 9)) * 0.04 : 0); }
   else if (!b.grounded) actor.play('Fall', 0.12);
   else if (P.speed < 0.4) actor.play('Idle', 0.18);
   else if (P.speed < 3.9) actor.play('Walking', 0.15, Math.max(0.6, P.speed / 1.9));
   else actor.play('Running', 0.12, P.speed / 5.6);
-  actor.aimTarget = combat && P.state !== 'ROLLING' && P.state !== 'MANTLING' ? 1 : 0; actor.pitch = P.pitch;
+  actor.aimTarget = combat && P.state !== 'ROLLING' && P.state !== 'MANTLING' && P.state !== 'SLIDING' ? 1 : 0; actor.pitch = P.pitch;
+  if (P.meleeT > 0) { const k = P.meleeT / 0.3; spin.rotation.y = Math.sin(k * Math.PI) * -0.9; } else spin.rotation.y = 0;
 }
 
 // Câmera sobre o ombro com colisão; também calcula ponto de mira e posição do cano.
@@ -250,7 +294,7 @@ export function updateCamera(dt, renderAlpha) {
   const cam = G.camera, p = P.body.pos;
   const cp = Math.cos(P.pitch), fwd = P.fwd.set(Math.sin(P.yaw) * cp, Math.sin(P.pitch), Math.cos(P.yaw) * cp);
   const rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw);
-  const headY = p.y + 1.55;
+  const headY = p.y + P.body.h - 0.25;
   let side = 0.62 * P.shoulder;
   const sh = raycast(p.x, headY, p.z, rx * P.shoulder, 0, rz * P.shoulder, 0.62 + 0.25, (c) => !c.barrel); if (sh) side = Math.max(0, sh.t - 0.25) * P.shoulder;
   const px = p.x + rx * side, pz = p.z + rz * side;

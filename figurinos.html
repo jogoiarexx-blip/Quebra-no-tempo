@@ -1,6 +1,8 @@
 <!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Figurinos — Quebra no Tempo</title>
-<body style="margin:0;background:#14161c;overflow:hidden"><script type="module">
-// Visualizador dos figurinos gerados por máscara (dev): abre em /figurinos.html
+<body style="margin:0;background:#14161c;overflow:hidden">
+<script type="importmap">{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }</script>
+<script type="module">
+// Visualizador dos figurinos gerados por máscara: abra figurinos.html no mesmo servidor do jogo
 import * as THREE from 'three';
 import { loadCharacters, Actor, OUTFITS } from './src/characters.js';
 const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(innerWidth, innerHeight); r.outputColorSpace = THREE.SRGBColorSpace; document.body.appendChild(r.domElement);

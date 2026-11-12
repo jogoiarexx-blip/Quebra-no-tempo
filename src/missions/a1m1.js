@@ -1,77 +1,14 @@
-// A1-M1 — RUA QUEBRADA. Geometria de blocos (greybox estilizado) + colisores AABB.
-// IDs de setores, checkpoints, selos e portas seguem o GDD §9.3 e o game_config v2.2.
+// A1-M1 — RUA QUEBRADA (GDD §9 / §9.3). Geometria, encontros, puzzles e eventos da missão.
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { addCollider, clearColliders } from './physics.js';
+import { addCollider } from '../physics.js';
+import { createBuilder, canvasTex, boxGeo, makeSky, makeSkyline, makeRain, streetLamp } from '../world.js';
+import { CFG } from '../state.js';
 
-function canvasTex(w, h, draw, repeat = true) {
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  draw(c.getContext('2d'), w, h);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.anisotropy = 4;
-  return t;
-}
-function noise(g, w, h, base, amt, n = 2600) {
-  g.fillStyle = base; g.fillRect(0, 0, w, h);
-  for (let i = 0; i < n; i++) {
-    const v = Math.random();
-    g.fillStyle = v > 0.5 ? `rgba(255,255,255,${amt * Math.random()})` : `rgba(0,0,0,${amt * 1.6 * Math.random()})`;
-    g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 3, 1 + Math.random() * 3);
-  }
-}
-function makeMaterials() {
-  const M = {};
-  const lam = (map, extra = {}) => new THREE.MeshLambertMaterial({ map, ...extra });
-  M.asphalt = lam(canvasTex(256, 256, (g, w, h) => { noise(g, w, h, '#2b2e34', 0.07); g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 2; for (let i = 0; i < 5; i++) { g.beginPath(); g.moveTo(Math.random() * w, Math.random() * h); g.lineTo(Math.random() * w, Math.random() * h); g.stroke(); } }));
-  M.concrete = lam(canvasTex(256, 256, (g, w, h) => { noise(g, w, h, '#6b6f76', 0.06); g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = 3; g.strokeRect(0, 0, w, h); }));
-  M.brick = lam(canvasTex(256, 256, (g, w, h) => { noise(g, w, h, '#5a3a30', 0.08); g.strokeStyle = 'rgba(20,12,10,.6)'; g.lineWidth = 2; for (let y = 0; y < h; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); for (let x = (y / 32) % 2 ? 0 : 32; x < w; x += 64) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 32); g.stroke(); } } }));
-  M.building = lam(canvasTex(256, 256, (g, w, h) => {
-    noise(g, w, h, '#343a47', 0.05);
-    for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
-      const lit = Math.random(); g.fillStyle = lit > 0.82 ? '#ffc86b' : lit > 0.7 ? '#5fd0e6' : '#141820';
-      g.fillRect(x * 64 + 14, y * 64 + 12, 36, 34);
-      g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(x * 64 + 14, y * 64 + 28, 36, 2);
-    }
-  }));
-  M.metal = lam(canvasTex(128, 128, (g, w, h) => { noise(g, w, h, '#4c5560', 0.07); g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, 0, w, 3); g.fillRect(0, 0, 3, h); }));
-  M.rust = lam(canvasTex(128, 128, (g, w, h) => { noise(g, w, h, '#6d4a34', 0.12); }));
-  M.wood = lam(canvasTex(128, 128, (g, w, h) => { noise(g, w, h, '#77583a', 0.08); g.strokeStyle = 'rgba(30,18,8,.5)'; g.lineWidth = 3; g.strokeRect(2, 2, w - 4, h - 4); g.beginPath(); g.moveTo(0, 0); g.lineTo(w, h); g.stroke(); }));
-  M.dark = lam(canvasTex(64, 64, (g, w, h) => noise(g, w, h, '#1c1f26', 0.06, 300)));
-  M.floor = lam(canvasTex(256, 256, (g, w, h) => { noise(g, w, h, '#4a4d50', 0.05); g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 2; for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * 64, 0); g.lineTo(i * 64, h); g.moveTo(0, i * 64); g.lineTo(w, i * 64); g.stroke(); } }));
-  M.car = lam(canvasTex(64, 64, (g, w, h) => noise(g, w, h, '#7a2e2a', 0.1, 400)));
-  M.car2 = lam(canvasTex(64, 64, (g, w, h) => noise(g, w, h, '#2f5a70', 0.1, 400)));
-  M.bus = lam(canvasTex(256, 128, (g, w, h) => { noise(g, w, h, '#c79a2b', 0.08); g.fillStyle = '#12161c'; for (let i = 0; i < 6; i++) g.fillRect(10 + i * 41, 22, 32, 40); g.fillStyle = '#7d1f1a'; g.fillRect(0, 84, w, 10); }, false));
-  M.hazard = lam(canvasTex(128, 128, (g, w, h) => { g.fillStyle = '#e0b020'; g.fillRect(0, 0, w, h); g.fillStyle = '#15171a'; for (let i = -4; i < 8; i++) { g.beginPath(); g.moveTo(i * 32, 0); g.lineTo(i * 32 + 16, 0); g.lineTo(i * 32 + 16 + h, h); g.lineTo(i * 32 + h, h); g.fill(); } }));
-  M.glass = new THREE.MeshLambertMaterial({ color: 0x9fd8e8, transparent: true, opacity: 0.28, depthWrite: false });
-  M.neonRed = new THREE.MeshBasicMaterial({ color: 0xff3048 });
-  M.neonCyan = new THREE.MeshBasicMaterial({ color: 0x35e6ff });
-  M.neonAmber = new THREE.MeshBasicMaterial({ color: 0xffb030 });
-  M.neonPink = new THREE.MeshBasicMaterial({ color: 0xff4fd0 });
-  M.water = new THREE.MeshBasicMaterial({ color: 0x1ad0ff, transparent: true, opacity: 0.55 });
-  M.lampOff = new THREE.MeshBasicMaterial({ color: 0x40181a });
-  M.lampOn = new THREE.MeshBasicMaterial({ color: 0x4dff88 });
-  return M;
-}
-
-function boxGeo(x0, x1, y0, y1, z0, z1, tile = 4) {
-  const w = x1 - x0, h = y1 - y0, d = z1 - z0;
-  const g = new THREE.BoxGeometry(w, h, d);
-  const uv = g.attributes.uv;
-  const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
-  for (let f = 0; f < 6; f++) for (let i = 0; i < 4; i++) {
-    const k = f * 4 + i; uv.setXY(k, uv.getX(k) * dims[f][0] / tile, uv.getY(k) * dims[f][1] / tile);
-  }
-  g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
-  return g;
-}
-
-export const SECTOR_NAMES = {
+const SECTOR_NAMES = {
   z01_garage: 'Garagem', z02_alley: 'Beco de Oficina', z03_avenue: 'Avenida Destruída', z04_hardware: 'Loja de Ferragens',
   z04b_duct: 'Duto de Ventilação', z05_vespera_plaza: 'Clube Véspera • Praça do Relógio', z06_walkway: 'Passarela', z07_substation: 'Subestação',
 };
-export function sectorAt(p) {
+function sectorAt(p) {
   const z = p.z;
   if (z < 12.25) return 'z01_garage';
   if (z < 40.25) return 'z02_alley';
@@ -82,28 +19,10 @@ export function sectorAt(p) {
   return 'z07_substation';
 }
 
-export function buildLevel(scene) {
-  clearColliders();
-  const M = makeMaterials();
-  const root = new THREE.Group(); scene.add(root);
-  const bins = new Map();
-  const L = { root, M, doors: {}, pickups: [], barrels: [], lights: [], anim: [], interact: {}, pts: {} };
-
-  // bloco estático: visual (mesclado por material) + colisor
-  const B = (mat, x0, x1, y0, y1, z0, z1, o = {}) => {
-    if (!o.invisible) { if (!bins.has(mat)) bins.set(mat, []); bins.get(mat).push(boxGeo(x0, x1, y0, y1, z0, z1, o.tile || 4)); }
-    return o.noCol ? null : addCollider(x0, x1, y0, y1, z0, z1, o.col || {});
-  };
-  // objeto dinâmico: malha própria + colisor
-  const D = (mat, x0, x1, y0, y1, z0, z1, col = {}) => {
-    const mesh = new THREE.Mesh(boxGeo(x0, x1, y0, y1, z0, z1, 2), mat); root.add(mesh);
-    return { mesh, col: addCollider(x0, x1, y0, y1, z0, z1, col), box: [x0, x1, y0, y1, z0, z1] };
-  };
-  // "pontos de luz" lógicos; só os 6 mais próximos viram PointLight de verdade (ver updateLights)
-  const light = (x, y, z, color, intensity, dist) => { const l = { pos: new THREE.Vector3(x, y, z), color, intensity, dist }; L.lights.push(l); return l; };
-  L.lightPool = []; for (let i = 0; i < 6; i++) { const pl = new THREE.PointLight(0xffffff, 0, 10, 1.6); root.add(pl); L.lightPool.push({ light: pl, spot: null, k: 0 }); }
-  const pickup = (id, type, amount, x, y, z) => L.pickups.push({ id, type, amount, pos: new THREE.Vector3(x, y, z) });
-
+function build(scene) {
+  const L = createBuilder(scene);
+  const { M, root, B, D, light } = L;
+  const pickup = L.pickup;
   // ---------------- chão geral ----------------
   B(M.asphalt, -40, 40, -1, 0, -6, 136, { tile: 6 });
   B(M.dark, -40, 40, -1, 0, 136, 170, { noCol: false });           // fundo do fosso da passarela
@@ -278,9 +197,7 @@ export function buildLevel(scene) {
   light(0, 6, 199, 0xff5a40, 16, 14);
 
   // barris/explosivos sinalizados
-  const barrel = (id, x, y, z) => { const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.15, 12), M.neonRed.clone()); mesh.material.color.set(0xc8261c); mesh.position.set(x, y + 0.58, z); root.add(mesh);
-    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.22, 12), M.hazard); band.position.y = 0.1; mesh.add(band);
-    L.barrels.push({ id, mesh, pos: new THREE.Vector3(x, y + 0.58, z), hp: 30, alive: true, col: addCollider(x - 0.4, x + 0.4, y, y + 1.15, z - 0.4, z + 0.4, { barrel: id }) }); };
+  const barrel = L.barrel;
   barrel('barrel_alley', 0.9, 0, 31.6); barrel('barrel_plaza', -3.5, 0, 125); barrel('capacitor_sub', 0, 4, 198);
 
   // coletáveis
@@ -294,8 +211,7 @@ export function buildLevel(scene) {
   pickup('pk_yard_med', 'medkit', 35, -12, 4.35, 172.5); pickup('pk_yard_ammo', 'ammo9', 30, 12, 4.35, 181);
   pickup('pk_sub_ammo', 'ammo9', 30, -10.5, 4.35, 187); pickup('pk_secret_armor', 'armor', 50, 10.6, 4.35, 186); pickup('pk_secret_pecas', 'pecas', 50, 10.6, 4.35, 187.2);
 
-  // mescla estática
-  for (const [mat, geos] of bins) { const mesh = new THREE.Mesh(mergeGeometries(geos, false), mat); mesh.receiveShadow = true; mesh.castShadow = mat !== M.asphalt; mesh.matrixAutoUpdate = false; root.add(mesh); }
+  L.finish();
 
   // grupos de encontro (GDD §9.3.3) — 12 inimigos no total, máx. 4 regulares ativos
   L.groups = {
@@ -305,7 +221,7 @@ export function buildLevel(scene) {
     eg02: { sector: 'z03_avenue', trigger: (p) => p.z > 45.5 && p.z < 80, units: [
       { type: 'E01', x: -8.5, y: 0, z: 66.6, role: 'hold' },
       { type: 'E01', x: 5.6, y: 0, z: 74.5, role: 'flank', path: [[9.5, 66], [9.5, 59]] },
-      { type: 'E02', x: 13.1, y: 5.01, z: 65, role: 'sniper' }] },
+      { type: 'E02', x: 13.1, y: 5.01, z: 65, role: 'sniper', alt: [[13.1, 67.2], [13.1, 62.8]] }] },
     eg03: { sector: 'z05_vespera_plaza', trigger: null, units: [
       { type: 'E01', x: -6.5, y: 0, z: 130, role: 'flank', path: [[-10, 122], [-9, 112]], portal: true },
       { type: 'E01', x: 7, y: 0, z: 129.5, role: 'hold', path: [[7, 124]], portal: true },
@@ -321,24 +237,182 @@ export function buildLevel(scene) {
     cp00: { x: 0, y: 0.01, z: 2, yaw: 0 }, cp01: { x: 0, y: 0.01, z: 42.5, yaw: 0 },
     cp02: { x: 0, y: 4.01, z: 134, yaw: 0 }, cp03: { x: 0, y: 4.01, z: 186.2, yaw: 0 },
   };
+  // atmosfera: céu, skyline, chuva e postes (melhoria v0.2)
+  makeSky(L); makeSkyline(L, 0, 105, 190); makeRain(L);
+  for (const [x, z, s] of [[-3.6, 46, 1], [3.6, 60, -1], [-3.6, 72, 1], [-11, 103, 1], [11, 128, -1]]) streetLamp(L, x, z, 0, 0xffc070, s);
   return L;
 }
 
-// Reatribui as 6 luzes reais aos pontos mais próximos do jogador, com fade.
-export function updateLights(L, p, dt) {
-  const spots = L.lights.filter((s) => s.intensity > 0).sort((a, b) => a.pos.distanceToSquared(p) - b.pos.distanceToSquared(p)).slice(0, L.lightPool.length);
-  for (const slot of L.lightPool) {
-    if (slot.spot && !spots.includes(slot.spot)) { slot.k -= dt * 3; if (slot.k <= 0) { slot.spot = null; slot.k = 0; } }
-    else if (slot.spot) slot.k = Math.min(1, slot.k + dt * 3);
-  }
-  for (const s of spots) {
-    if (L.lightPool.some((sl) => sl.spot === s)) continue;
-    const free = L.lightPool.find((sl) => !sl.spot);
-    if (free) { free.spot = s; free.k = 0; }
-  }
-  for (const slot of L.lightPool) {
-    if (!slot.spot) { slot.light.intensity = 0; continue; }
-    slot.light.position.copy(slot.spot.pos); slot.light.color.set(slot.spot.color); slot.light.distance = slot.spot.dist;
-    slot.light.intensity = slot.spot.intensity * slot.k;
-  }
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const DOCS = {
+  doc1: { k: 'ARQUIVO DE MEMÓRIA 01', t: 'Recibo que não existe', b: 'FERRAGENS IRMÃOS LUME — 14/03/2039\n\n1 x fusível industrial 40A ........ pago\n1 x "conserto de relógio de praça" . pago\n\nObservação do balconista:\nO cliente jura que comprou isto ontem. Eu juro que a loja estava fechada ontem. A câmera mostra os dois: ele comprando e a porta trancada. No mesmo minuto.\n\nRabisco no verso, outra letra:\n"Se o relógio da praça voltar a marcar III, a lembrança certa aparece. — S."' },
+  doc2: { k: 'ARQUIVO DE MEMÓRIA 02', t: 'Fita do ensaio', b: 'TRANSCRIÇÃO — CLUBE VÉSPERA, BASTIDORES\n\nSOL: Cifra, solta a faixa sete sem os graves.\nDJ CIFRA: Sem os graves fica só o chiado.\nSOL: Não é chiado. Escuta o compasso: três batidas, pausa, uma. Repete a noite inteira, embaixo de qualquer música.\nDJ CIFRA: ...isso não está no meu arquivo original.\nSOL: Nem no meu ensaio de ontem. Alguém gravou por cima do que a gente lembra.\nMARA: Então a gente guarda a fita verdadeira num lugar que ninguém lembre de procurar.\n\n[fim da fita — etiqueta: "estoque da ferragem, mezanino"]' },
+};
+const DANCES = ['Superlove_Pop_Dance', 'All_Night_Dance', 'Not_Your_Mom'];
+let lastSafe = null, puzzleT = 0, hintLevel = 0, solT = 0, solI = 0;
+
+export default {
+  id: 'A1-M1', name: 'Rua Quebrada', sectorNames: SECTOR_NAMES, sectorAt,
+  sealsRequired: CFG.slice.exit.sealsRequired, sealsAvailable: 3, requiredFlags: CFG.slice.exit.requiredFlags,
+  enemiesTotal: 12, secretsTotal: 3, next: 'A1-M2', ambientTrack: 0,
+  build(scene, X) {
+    const L = build(scene);
+    // dançarinas na vitrine-palco: mesmo modelo, figurinos diferentes via máscara
+    L.dancers = [['sol', 0.75, 0], ['lux', -0.8, 1]].map(([outfit, dz, off]) => { const a = X.npc({ asset: 'sol', outfit, x: L.pts.sol.x, y: L.pts.sol.y, z: L.pts.sol.z + dz, yaw: Math.PI / 2, anim: 'Idle', performer: true }); a.off = off; return a; });
+    return L;
+  },
+  newState: () => ({ clock: 2 }),
+  outdoor: (p) => !(p.z < 12.25 || (p.z > 80.5 && p.z < 96 && p.x < 13.5) || p.z > 184.3),
+  apply(X) {
+    const { S, L } = X, f = S.flags;
+    X.setDoor('door_garage', !!f.got_pistol, true); X.setDoor('door_alley', !!f.alley_open, true); X.setDoor('door_shutter', !!f.generator_on, true); X.setDoor('door_basso', !!f.vespera_first_contact, true);
+    const gl = S.destroyed.includes('glass'); L.glass.mesh.visible = !gl; L.glass.col.enabled = !gl;
+    L.secretPanel.mesh.visible = !f.secret_substation;
+    L.genLamp.material = f.generator_on ? L.M.lampOn : L.M.lampOff; L.storeLight.intensity = f.generator_on ? 26 : 5;
+    L.breakerLamp.a.material = f.substation_breaker_a ? L.M.lampOn : L.M.lampOff; L.breakerLamp.b.material = f.substation_breaker_b ? L.M.lampOn : L.M.lampOff;
+    const pw = f.substation_breaker_a && f.substation_breaker_b; for (const l of L.subLights) l.intensity = pw ? 34 : 0;
+    L.termLamp.material = f.extraction_terminal_armed ? L.M.lampOn : L.M.lampOff;
+    L.clockHand.rotation.z = S.clock * Math.PI / 2;
+    const bus = S.oneShots.includes('bus'); L.bus.state = bus ? 'SETTLED' : 'INTACT'; L.bus.col.enabled = bus;
+    if (bus) { L.bus.group.position.set(9.3, 0, 72.8); L.bus.group.rotation.set(0, 0.06, 0.08); } else { L.bus.group.position.set(8.6, 7.5, 76.6); L.bus.group.rotation.set(-0.12, 0.25, 0); }
+    lastSafe = null; puzzleT = 0; hintLevel = 0;
+  },
+  pickupVisible: (X, pk) => !pk.id.startsWith('pk_secret') || X.S.flags.secret_substation,
+  intro(X) {
+    X.say('ÍRIS-9', 'Bracelete ativo. O noticiário acabou de mostrar você explodindo o reator municipal, Gael.');
+    X.say('GAEL', 'Engraçado. Eu me lembro de estar aqui, sem explodir nada.');
+    X.say('ÍRIS-9', 'Então alguém editou a lembrança da cidade inteira. Pegue a Martelo-9 no armário e saia pelo beco.');
+  },
+  objective(X) {
+    const f = X.S.flags, S = X.S, sec = sectorAt(X.P.body.pos);
+    if (!f.got_pistol) return 'Pegue a Martelo-9 no armário da garagem';
+    if (!f.alley_open) return 'Abra caminho pelo Beco de Oficina';
+    if (!S.groupsDone.includes('eg02') && sec === 'z03_avenue') return 'Cruze a avenida até a Loja de Ferragens';
+    if (!f.generator_on && (sec === 'z03_avenue' || sec === 'z04_hardware')) return f.fuse_collected ? 'Instale o fusível e ligue o gerador da loja' : 'Loja sem energia: encontre o fusível';
+    if (!f.vespera_first_contact && (sec === 'z05_vespera_plaza' || sec === 'z04_hardware' || sec === 'z04b_duct')) return 'Vá à praça e atenda o interfone do Clube Véspera';
+    if (X.activeGroups.has('eg03')) return 'Sobreviva à emboscada na Praça do Relógio';
+    if (sec !== 'z07_substation' && !(f.substation_breaker_a && f.substation_breaker_b)) return 'Suba à passarela e alcance a subestação';
+    if (!(f.substation_breaker_a && f.substation_breaker_b)) return `Ligue os dois disjuntores (${(f.substation_breaker_a ? 1 : 0) + (f.substation_breaker_b ? 1 : 0)}/2)`;
+    if (!f.extraction_terminal_armed) return 'Arme o terminal de extração';
+    if (S.seals.length < this.sealsRequired) return 'Recupere mais 1 Selo de Continuidade (painel do relógio da praça ou gerador da loja)';
+    return 'Alcance a Fenda de Saída';
+  },
+  // marcador do objetivo atual (só rota principal; segredos nunca são marcados)
+  waypoint(X) {
+    const f = X.S.flags, S = X.S, I = X.L.interact, p = X.P.body.pos, sec = sectorAt(p);
+    if (!f.got_pistol) return I.locker;
+    if (!f.alley_open) return S.groupsDone.includes('eg01') || !X.activeGroups.has('eg01') ? I.alley_switch : null;
+    if (!f.generator_on) { if (sec === 'z01_garage' || sec === 'z02_alley' || sec === 'z03_avenue') return V(-6, 1, 80.8); return f.fuse_collected ? I.generator : I.fuse; }
+    if (!f.vespera_first_contact) return sec === 'z04_hardware' ? V(-7, 1, 96.3) : I.intercom;
+    if (X.activeGroups.has('eg03')) return null;
+    if (!(f.substation_breaker_a && f.substation_breaker_b)) {
+      if (p.z < 126) return V(0, 1, 126); if (p.z < 184 && p.y < 3.5) return V(0, 4.5, 133);
+      if (p.z < 185) return V(0, 5, 186);
+      return !f.substation_breaker_a ? I.breaker_a : I.breaker_b;
+    }
+    if (!f.extraction_terminal_armed) return I.terminal;
+    if (S.seals.length < this.sealsRequired) return null;
+    return X.L.pts.gate.clone().setY(X.L.pts.gate.y + 1.2);
+  },
+  interactables(X, add) {
+    const { S, L, P } = X, f = S.flags, I = L.interact;
+    if (!f.got_pistol) add(I.locker, 'Abrir armário', () => { f.got_pistol = true; X.giveWeapon('martelo9'); P.ammo.ammo9 = 45; X.setDoor('door_garage', true); X.sfx.pickup(); X.toast('MARTELO-9 ADQUIRIDA'); X.say('GAEL', 'Martelo-9. Velha, feia e pontual. Minha cara.'); X.say('ÍRIS-9', 'O alvo amarelo reage a tiros. Botão direito mira, Alt rola, C agacha, F dá coronhada.'); });
+    if (!f.alley_open) add(I.alley_switch, 'Acionar chave de emergência do portão', () => { f.alley_open = true; X.setDoor('door_alley', true); });
+    if (!f.fuse_collected) add(I.fuse, 'Pegar fusível', () => { f.fuse_collected = true; X.sfx.pickup(); X.toast('FUSÍVEL 40A'); puzzleT = 0; });
+    if (!f.generator_on) add(I.generator, f.fuse_collected ? 'Instalar fusível e ligar o gerador' : 'Gerador sem fusível', () => {
+      if (!f.fuse_collected) { X.toast('Falta o fusível — procure nos armários da loja'); X.sfx.empty(); return; }
+      f.generator_on = true; f.generator_state = 'ON'; X.sfx.power(); X.setDoor('door_shutter', true); L.genLamp.material = L.M.lampOn; L.storeLight.intensity = 26;
+      X.after(0.7, () => { X.grantSeal('seal_a1m1_shop', L.pts.seal_shop); X.say('ÍRIS-9', 'Registro verdadeiro recuperado. Isso é um Selo de Continuidade: dois deles firmam uma Fenda de Saída.'); });
+    });
+    for (const id of ['doc1', 'doc2']) add(I[id], 'Ler arquivo de memória', () => { if (!S.archives.includes(id)) { S.archives.push(id); if (id === 'doc2' && !S.secrets.includes('duct')) S.secrets.push('duct'); } X.openDoc(DOCS[id]); });
+    if (!f.vespera_first_contact) add(I.intercom, 'Atender o interfone do Véspera', () => {
+      f.vespera_first_contact = true; X.setDoor('door_basso', true);
+      X.say('MARA', 'Clube Véspera. Se veio prender alguém, entre na fila. Se veio entender o sinal, escute.');
+      X.say('SOL', 'A trilha do palco carrega uma frequência escondida. Ela regrava o que as pessoas lembram.');
+      X.say('SOL', 'O relógio da praça marca a hora errada desde que isso começou. O letreiro ainda sabe a certa.');
+      X.say('BASSO', 'Porta lateral destrancada. Tem curativo, cartucho e nenhuma bebida. Não abuse.');
+      X.say('MARA', 'A origem do pulso é a subestação, depois da passarela. E Gael: não banque o herói sozinho.');
+      X.after(9, () => { if (!S.groupsDone.includes('eg03') && !X.activeGroups.has('eg03')) startAmbush(X); });
+    });
+    if (!f.clock_panel_solved) add(I.clock_panel, 'Girar o ponteiro do relógio', () => {
+      S.clock = (S.clock + 1) % 4; L.clockHand.rotation.z = S.clock * Math.PI / 2; X.sfx.ui();
+      if (S.clock === 1) { f.clock_panel_solved = true; X.sfx.power(); X.after(0.5, () => { X.grantSeal('seal_a1m1_plaza', L.pts.seal_plaza); X.say('SOL', 'Três em ponto. A praça inteira acabou de lembrar que horas são.'); }); }
+    });
+    for (const k of ['a', 'b']) if (!f['substation_breaker_' + k]) add(I['breaker_' + k], `Ligar disjuntor ${k.toUpperCase()}`, () => {
+      f['substation_breaker_' + k] = true; X.sfx.power(); L.breakerLamp[k].material = L.M.lampOn;
+      if (f.substation_breaker_a && f.substation_breaker_b) { f.both_breakers_ON = true; for (const l of L.subLights) l.intensity = 34; X.after(0.8, () => { X.grantSeal('seal_a1m1_substation', L.pts.seal_substation); X.say('ÍRIS-9', 'Energia estável. Arme o terminal para firmar a Fenda.'); }); }
+    });
+    if (!f.secret_substation) add(I.secret_panel, 'Remover painel solto', () => { f.secret_substation = true; S.secrets.push('substation_panel'); L.secretPanel.mesh.visible = false; X.sfx.door(); X.toast('SEGREDO ENCONTRADO'); X.refreshPickups(); });
+    if (!f.extraction_terminal_armed) add(I.terminal, f.substation_breaker_a && f.substation_breaker_b ? 'Armar terminal de extração' : 'Terminal sem energia', () => {
+      if (!(f.substation_breaker_a && f.substation_breaker_b)) { X.toast('Ligue os dois disjuntores primeiro'); X.sfx.empty(); return; }
+      f.extraction_terminal_armed = true; L.termLamp.material = L.M.lampOn; X.sfx.power();
+      X.say('ÍRIS-9', X.gateStable() ? 'Fenda de Saída estável. Atravesse quando quiser.' : 'Fenda energizada, mas instável: falta um Selo. O painel do relógio na praça resolve.');
+    });
+  },
+  gateHint(X) { return X.S.seals.length < this.sealsRequired ? `FENDA INSTÁVEL • SELOS ${X.S.seals.length}/${this.sealsRequired}` : 'FENDA SEM ENERGIA • disjuntores e terminal'; },
+  exitLine: 'Primeiro pulso identificado. Origem: o palco do Véspera.',
+  tick(X, dt) {
+    const { S, P, L } = X, p = P.body.pos, f = S.flags, sec = sectorAt(p);
+    if (sec === 'z03_avenue' && p.z > 57 && X.once('bus')) { L.bus.state = 'FALLING'; L.bus.t = 0; }
+    if (sec === 'z04_hardware' && X.once('store_enter')) X.say('ÍRIS-9', 'Portão de enrolar sem energia. Gerador nos fundos, fusível em algum armário.');
+    if (sec === 'z04b_duct' && p.x > 0 && X.once('duct')) { if (!S.secrets.includes('duct')) S.secrets.push('duct'); X.toast('SEGREDO ENCONTRADO • duto de ventilação'); }
+    if (sec === 'z05_vespera_plaza' && p.z > 98 && X.once('neon')) X.say('GAEL', 'Esse letreiro acabou de me mostrar um aniversário que eu nunca tive.');
+    if (sec === 'z06_walkway' && p.z > 137 && X.once('walk_tip')) X.say('ÍRIS-9', 'Bordas com faixa amarela aguentam você. Segure Espaço para saltar mais alto e agarrar.');
+    if (sec === 'z07_substation' && X.once('sub_enter')) X.say('ÍRIS-9', 'Dois disjuntores, um em cada parede. O capacitor vermelho no meio explode bonito.');
+    if (S.checkpointId === 'cp00' && f.alley_open && p.z > 41.6) { X.saveCheckpoint('cp01'); X.say('ÍRIS-9', 'Beco limpo. Atirador na sacada à esquerda da avenida: o laser avisa antes do disparo.'); }
+    if ((S.checkpointId === 'cp00' || S.checkpointId === 'cp01') && p.z > 132.4 && p.z < 136 && p.y > 3.8 && P.body.grounded) { if (!P.eco.unlocked) { P.eco.charges = 0; P.eco.teaser = false; } f.eco_teaser_available = false; X.saveCheckpoint('cp02'); }
+    if (S.checkpointId !== 'cp03' && p.z > 185.3 && P.body.grounded) X.saveCheckpoint('cp03');
+    if (sec === 'z06_walkway' && p.z < 170) {
+      if (P.body.grounded && p.y > 3.5 && P.state === 'GROUNDED') { if (!lastSafe) lastSafe = new THREE.Vector3(); const g = P.body.ground; if (g && p.z > g.min[2] + 0.5 && p.z < g.max[2] - 0.5) lastSafe.copy(p); }
+      if (p.y < 1.6) X.fallRecover(lastSafe || V(0, 4.01, 134));
+    }
+    if (sec === 'z04_hardware' && !f.generator_on && X.settings.hints) { puzzleT += dt; if (puzzleT > 180 && hintLevel === 0) { hintLevel = 1; X.say('ÍRIS-9', 'Dica: há um armário metálico na parede à direita de quem entra na loja.'); } if (puzzleT > 300 && hintLevel === 1) { hintLevel = 2; X.say('ÍRIS-9', 'O fusível está no armário da parede direita; o gerador fica do outro lado, perto do portão de enrolar.'); } }
+  },
+  groupPending: (X, id) => id === 'eg03' && X.hasTimers(),
+  onGroupStart(X, id) {
+    if (id === 'eg01') X.say('ÍRIS-9', 'Dois Saqueadores Cronais. O barril vermelho não está ali de enfeite.');
+    if (id === 'eg05') X.say('ÍRIS-9', 'Dois saindo da subestação. Use as caixas do pátio.');
+  },
+  onGroupDone(X, id) {
+    const f = X.S.flags;
+    if (id === 'eg01' && !f.alley_open) { f.alley_open = true; X.setDoor('door_alley', true); }
+    if (id === 'eg02') X.say('GAEL', 'Avenida liberada. A loja de ferragens ainda tem luz de emergência.');
+    if (id === 'eg03') { if (!f.eco_teaser_used && !X.P.eco.unlocked) X.say('SOL', 'O bracelete piscou e você nem ligou. Tudo bem, a noite é longa.'); X.say('MARA', 'Praça limpa. A escada do fundo leva à passarela.'); }
+  },
+  onShootCollider(X, c, dmg, point) {
+    const S = X.S, L = X.L;
+    if (c.glass && dmg > 0 && !S.destroyed.includes('glass')) { S.destroyed.push('glass'); L.glass.mesh.visible = false; L.glass.col.enabled = false; X.sfx.glass(); X.fx.sparks(point, 0xbfefff, 40, 5, 0.8); if (!S.secrets.includes('vitrine')) { S.secrets.push('vitrine'); X.toast('VITRINE QUEBRADA • algo brilha lá dentro'); } }
+    if (c.target && dmg > 0) { X.fx.flash(point, 0.4, 0.12, 0xffe060); if (X.once('target_hit')) X.toast('ALVO REATIVO • mira calibrada'); }
+  },
+  barrelRadius: (id) => (id === 'capacitor_sub' ? 7 : 5.5),
+  onEcoUsed(X) { if (!X.P.eco.unlocked) { X.S.flags.eco_teaser_used = true; X.S.flags.eco_teaser_available = false; X.say('SOL', 'Você... voltou no tempo um pouquinho? Isso explicaria muito sobre os meus ensaios.'); } },
+  deathTips: ['Role (Alt ou Z) quando o visor do inimigo piscar — o tiro vem logo depois.', 'O laser vermelho do atirador trava meio segundo antes do disparo. Saia da linha.', 'Barris vermelhos e o capacitor da subestação resolvem grupos inteiros.', 'Armadura absorve 65% do dano. Procure os kits azuis.', 'Coronhada (F) derruba um Saqueador de perto e abre espaço.'],
+  frame(X, dt, t, sim) {
+    const { L, P } = X;
+    const bus = L.bus;
+    if (bus.state === 'FALLING' && sim) { bus.t += dt; const k = Math.min(1, bus.t / 1.25), e = k * k; bus.group.position.set(8.6 + 0.7 * k, 7.5 - 7.5 * e, 76.6 - 3.8 * k); bus.group.rotation.set(-0.12 - 1.0 * Math.sin(k * 3.14), 0.25 - 0.19 * k, 0.08 * k);
+      if (k >= 1) { bus.state = 'SETTLED'; X.sfx.crash(); X.fx.shake(0.5); X.fx.sparks(V(9.3, 0.5, 72.8), 0xffc060, 60, 8, 1); X.say('GAEL', 'Aquele ônibus tinha horário. Agora tem cratera.'); } }
+    if (bus.state === 'SETTLED' && !bus.col.enabled) { const p = P.body.pos; if (!(p.x > 6.8 && p.x < 11.8 && p.z > 68 && p.z < 77.6)) bus.col.enabled = true; }
+    const gl = Math.sin(t * 0.9) > 0.9 || Math.sin(t * 7.3) > 0.985; L.neon.material.map = L.neonTex[gl ? 1 : 0]; L.neonLight.color = gl ? 0x35e6ff : 0xff4fd0;
+    const ref = X.playing ? P.body.pos : X.camera.position, near = Math.abs(ref.z - 117) < 70;
+    if (near) { solT -= dt; if (solT <= 0) { solI = (solI + 1) % DANCES.length; solT = 14; } }
+    for (const d of L.dancers) { d.setVisible(near); if (near) d.actor.play(DANCES[(solI + d.off) % DANCES.length], 0.6); }
+    L.water.material.opacity = 0.45 + 0.12 * Math.sin(t * 3);
+  },
+  menuCam(t, cam) { cam.position.set(3 + Math.sin(t * 0.12) * 5, 3.2 + Math.sin(t * 0.2) * 0.4, 108 + Math.cos(t * 0.12) * 4); cam.lookAt(-15, 4.6, 116); return V(-8, 3, 114); },
+  resultsText: (X) => `${X.S.pecas} Peças Cronais recolhidas. A1-M2 — Noite de Neon está liberada: o Véspera espera por você.`,
+};
+
+function startAmbush(X) {
+  const S = X.S, P = X.P;
+  X.portal.target = 1; X.sfx.portal(); X.startGroup('eg03', false); S.flags.eg03_started = true;
+  X.say('ÍRIS-9', 'Fenda abrindo sobre a praça! Drone e reforços — troque a altura da mira.');
+  X.after(1.2, () => X.spawnGroup('eg03'));
+  X.after(4.5, () => {            // pulso: 1 carga demonstrativa de Eco Cronal (não permanente)
+    if (!X.once('eco_pulse') || P.eco.unlocked) return;
+    S.flags.eco_teaser_seen = true; S.flags.eco_teaser_available = true; P.eco.charges = CFG.eco.teaserCharges; P.eco.teaser = true;
+    X.fx.flash(P.body.pos.clone().setY(P.body.pos.y + 1), 3, 0.5, 0x35e6ff); X.sfx.eco();
+    X.say('ÍRIS-9', 'O pulso carregou o bracelete: uma carga de Eco Cronal. Q devolve você para onde estava há três segundos.');
+  });
+  X.after(7, () => (X.portal.target = 0));
 }

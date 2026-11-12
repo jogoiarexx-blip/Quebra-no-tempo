@@ -45,7 +45,7 @@ class Enemy {
     if (type === 'DRONE') { this.drone = makeDrone(); this.root = this.drone.root; }
     else {
       this.actor = assets[type] ? new Actor(type, {})     // GLB próprio do inimigo (manifest.json)
-        : new Actor('gael', { scale: type === 'E02' ? 1.0 : 1.03, tint: type === 'E02' ? 0x9a7ad0 : 0x6fa0a8, helmet: type === 'E02' ? 0xff2030 : 0xffb030 });
+        : new Actor('gael', { scale: type === 'E02' ? 1.0 : 1.03, outfit: type === 'E02' ? 'sniper' : 'merc', helmet: type === 'E02' ? 0xff2030 : 0xffb030, armor: type === 'E02' ? 0x4a3a66 : 0x3a4250 });
       this.root = this.actor.root;
       const gm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, type === 'E02' ? 0.9 : 0.5).translate(0, 0, type === 'E02' ? 0.35 : 0.2), new THREE.MeshLambertMaterial({ color: 0x15171b }));
       this.gun = gm; scene.add(gm); gm.visible = false;
@@ -55,7 +55,7 @@ class Enemy {
   spawn(def, group) {
     Object.assign(this, { active: true, alive: true, group, role: def.role, hp: this.st.hp * diff().hp, state: 'move', path: (def.path || []).map((q) => ({ x: q[0], z: q[1] })), pathI: 0,
       cd: 0.6 + Math.random() * 0.6, tele: 0, burstLeft: 0, burstT: 0, first: !!def.first, losT: 0, los: false, noLos: 0, poise: 0, poiseT: 0, stagger: 0, limp: 0, deadT: 0, stuck: 0, side: 0, sideT: 0,
-      shots: 0, strafeT: 3 + Math.random() * 3, facing: Math.PI, spawnT: def.portal ? 0.9 : 0, home: { x: def.x, z: def.z }, aimDir: new THREE.Vector3(), t: Math.random() * 10 });
+      shots: 0, strafeT: 3 + Math.random() * 3, facing: Math.PI, spawnT: def.portal ? 0.9 : 0, home: { x: def.x, z: def.z }, aimDir: new THREE.Vector3(), t: Math.random() * 10, knock: null, alt: def.alt || null, spawnY: def.y });
     this.body.pos.set(def.x, def.y, def.z); this.body.vel.set(0, 0, 0); this.body.grounded = true;
     this.root.visible = true; this.root.position.copy(this.body.pos);
     if (this.actor) { this.actor.play('Idle', 0); this.actor.model.rotation.set(0, 0, 0); this.actor.model.position.y = 0; this.gun.visible = true; this.actor.aimTarget = 0; }
@@ -104,7 +104,8 @@ class Enemy {
     this.limp = Math.max(0, this.limp - dt);
     let mvx = 0, mvz = 0, wantFace = Math.atan2(dx, dz), speed = st.speed * (this.limp > 0 ? 0.45 : 1);
 
-    if (this.stagger > 0) { this.stagger -= dt; }
+    if (this.stagger > 0) { this.stagger -= dt; if (this.knock) { b.vel.x = this.knock.x; b.vel.z = this.knock.z; b.vel.y -= GRAV * dt; moveBody(b, dt); this.knock.multiplyScalar(Math.pow(0.02, dt)); if (this.knock.lengthSq() < 0.1) this.knock = null; } else { b.vel.x = b.vel.z = 0; b.vel.y -= GRAV * dt; moveBody(b, dt); }
+      this.root.position.copy(p); if (this.actor) { this.actor.play('Crouch', 0.08); this.actor.aimTarget = 0; } }
     else if (this.type === 'DRONE') this.updateDrone(dt, tp, dist);
     else {
       // ----- movimento -----
@@ -136,7 +137,7 @@ class Enemy {
           const gx = p.x - dz / gl * 3 * s, gz = p.z + dx / gl * 3 * s;
           if (!boxFree(gx, p.y + 0.5, gz, b.hw, b.h - 0.5)) { this.advGoal = { x: gx, z: gz }; this.state = 'advance'; }
         }
-        if (this.type === 'E02' && this.shots >= 2) { this.shots = 0; this.advGoal = { x: this.home.x, z: p.z < 65 ? 67.2 : 62.8 }; this.state = 'advance'; }   // troca de cobertura
+        if (this.type === 'E02' && this.shots >= 2 && this.alt) { this.shots = 0; const c = this.alt.reduce((b, q) => (Math.hypot(q[0] - p.x, q[1] - p.z) > Math.hypot(b[0] - p.x, b[1] - p.z) ? q : b)); this.advGoal = { x: c[0], z: c[1] }; this.state = 'advance'; }   // troca de cobertura entre pontos autorados
       }
       if (this.state === 'aim') {
         mvx = mvz = 0; this.tele -= dt;
@@ -157,7 +158,10 @@ class Enemy {
       b.vel.x = mvx * speed; b.vel.z = mvz * speed; b.vel.y -= GRAV * dt;
       const before = p.x + p.z; const wall = moveBody(b, dt);
       if ((mvx || mvz) && (wall || Math.abs(p.x + p.z - before) < speed * dt * 0.2)) { this.stuck += dt; if (this.stuck > 0.35) { this.stuck = 0; this.side = Math.random() < 0.5 ? -1 : 1; this.sideT = 0.7; } } else this.stuck = Math.max(0, this.stuck - dt);
-      if (p.y < -5) this.die();
+      if (p.y < this.spawnY - 6) this.die();
+      // anti-softlock (GDD §9.3: "IA travada não bloqueia"): sem visão e quase parado por 15 s = foge da cena
+      this.lostT = (!this.los && Math.hypot(b.vel.x, b.vel.z) * dt < 0.02 * dt + 0.01) ? (this.lostT || 0) + dt : Math.max(0, (this.lostT || 0) - dt * 2);
+      if (this.lostT > 15 && this.type !== 'E02') { this.alive = false; this.deactivate(); G.hooks.toast && G.hooks.toast('Um invasor recuou'); }          // caiu para fora do mapa (relativo ao ponto de spawn)
       // ----- visual -----
       let df = wantFace - this.facing; df = Math.atan2(Math.sin(df), Math.cos(df)); this.facing += df * Math.min(1, dt * 10);
       this.root.position.copy(p); this.root.rotation.y = this.facing;

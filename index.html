@@ -1,38 +1,185 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b0d12">
-  <title>QUEBRA NO TEMPO — Iniciando jogo</title>
-  <!-- O GitHub Pages publica a raiz do repositório, mas o jogo precisa
-       usar os módulos compilados pelo Vite em dist/. Nunca carregar
-       src/main.js diretamente no navegador: ele importa "three". -->
-  <meta http-equiv="refresh" content="0; url=./dist/">
-  <style>
-    :root{color-scheme:dark}
-    html,body{height:100%;margin:0}
-    body{display:grid;place-items:center;background:#0b0d12;color:#eef0f4;font-family:system-ui,Arial,sans-serif;text-align:center;padding:16px;box-sizing:border-box}
-    main{max-width:520px}
-    h1{font-size:clamp(32px,6vw,60px);line-height:1;letter-spacing:.04em;margin:0 0 16px}
-    h1 span{color:#ffb030}
-    p{color:#aeb7c7;line-height:1.5}
-    a{display:inline-block;margin-top:12px;border:1px solid #ffb030;color:#ffb030;padding:12px 22px;text-decoration:none;font-weight:700}
-    a:hover,a:focus-visible{background:#ffb030;color:#111}
-  </style>
-  <script>
-    // Preserva parâmetros e fragmento, sem adicionar uma tela extra ao histórico.
-    const destino = new URL('./dist/', window.location.href);
-    destino.search = window.location.search;
-    destino.hash = window.location.hash;
-    window.location.replace(destino.href);
-  </script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QUEBRA NO TEMPO — Ato I</title>
+<style>
+:root{--bg:#0b0d12;--panel:rgba(12,15,22,.88);--line:rgba(255,255,255,.14);--ink:#eef0f4;--dim:#9aa3b2;--amber:#ffb030;--red:#ff3048;--cyan:#35e6ff;--pink:#ff4fd0;--ok:#4dff88;
+  --f:"Bahnschrift","DIN Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--f);overflow:hidden;user-select:none}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.layer{position:fixed;inset:0;display:none}.layer.on{display:flex}
+button{font:inherit;color:inherit;cursor:pointer}
+/* ---------- HUD ---------- */
+#hud{pointer-events:none;display:none}#hud.on{display:block}
+#hud>*{position:absolute}
+#obj{left:24px;top:20px;max-width:440px;border-left:3px solid var(--amber);padding:6px 12px;background:linear-gradient(90deg,rgba(0,0,0,.55),transparent)}
+#obj small{display:block;color:var(--amber);letter-spacing:.18em;font-size:11px}#obj b{font-size:17px;font-weight:600;letter-spacing:.02em}
+#seals{left:24px;top:84px;font-size:15px;letter-spacing:.14em;padding:4px 12px;display:flex;gap:8px;align-items:center}
+#sealDots{display:flex;gap:8px}#seals i{width:14px;height:14px;border:2px solid var(--amber);border-radius:50%;display:inline-block;opacity:.45}#seals i.got{background:var(--amber);opacity:1;box-shadow:0 0 10px var(--amber)}
+#sector{right:24px;top:20px;text-align:right;color:var(--dim);letter-spacing:.2em;font-size:12px;text-transform:uppercase}
+#saved{right:24px;top:44px;color:var(--ok);font-size:13px;letter-spacing:.12em;opacity:0;transition:opacity .3s}
+#vitals{left:24px;bottom:24px;width:280px}
+.bar{height:12px;background:rgba(0,0,0,.55);border:1px solid var(--line);margin-top:6px;position:relative;transform:skewX(-14deg)}
+.bar>div{height:100%;width:50%;transition:width .12s}.bar.hp>div{background:linear-gradient(90deg,#c21e34,var(--red))}.bar.ar>div{background:linear-gradient(90deg,#1f8fa8,var(--cyan))}
+#vitals label{font-size:11px;letter-spacing:.2em;color:var(--dim);display:flex;justify-content:space-between}#vitals label b{color:var(--ink);font-size:14px}
+#eco{left:24px;bottom:110px;display:none;align-items:center;gap:8px;font-size:13px;letter-spacing:.12em;color:var(--cyan)}
+#eco span{border:1px solid var(--cyan);padding:2px 7px;color:var(--ink)}#eco b{letter-spacing:.2em}
+.ecobar{display:inline-block;width:60px;height:4px;background:rgba(53,230,255,.2)}.ecobar i{display:block;height:100%;width:0;background:var(--cyan)}
+#crouchTag{left:24px;bottom:136px;font-size:12px;letter-spacing:.24em;color:var(--amber)}
+#wp{left:0;top:0;transform:translate(-50%,-50%);display:none;text-align:center;filter:drop-shadow(0 1px 3px #000)}
+#wp i{display:block;width:14px;height:14px;margin:0 auto 3px;border:2px solid var(--amber);transform:rotate(45deg);background:rgba(255,176,48,.25)}
+#wp span{font-size:12px;letter-spacing:.12em;color:var(--amber)}#wp.edge i{background:var(--amber)}
+#weapon{right:24px;bottom:24px;text-align:right}
+#weapon .n{font-size:13px;letter-spacing:.22em;color:var(--amber)}#weapon .a{font-size:44px;font-weight:700;line-height:1}#weapon .a small{font-size:20px;color:var(--dim);font-weight:400}
+#weapon .r{font-size:12px;letter-spacing:.2em;color:var(--red);height:14px}
+#cross{left:50%;top:50%;width:0;height:0}
+#cross i{position:absolute;background:#fff;box-shadow:0 0 2px #000}
+#cross .d{width:2px;height:2px;left:-1px;top:-1px}
+#hitm{left:50%;top:50%;width:26px;height:26px;margin:-13px;opacity:0;transform:rotate(45deg)}
+#hitm:before,#hitm:after{content:"";position:absolute;background:currentColor}#hitm:before{left:12px;top:0;width:2px;height:26px}#hitm:after{top:12px;left:0;height:2px;width:26px}
+#prompt{left:50%;top:60%;transform:translateX(-50%);padding:8px 16px;background:var(--panel);border:1px solid var(--line);font-size:16px;display:none;white-space:nowrap}
+#prompt kbd{background:var(--amber);color:#111;padding:1px 8px;margin-right:10px;font-family:inherit;font-weight:700}
+#toast{left:50%;top:22%;transform:translateX(-50%);font-size:20px;letter-spacing:.16em;color:var(--amber);text-shadow:0 2px 8px #000;opacity:0;transition:opacity .25s;white-space:nowrap}
+#sub{left:50%;bottom:120px;transform:translateX(-50%);max-width:min(760px,86vw);text-align:center;font-size:19px;line-height:1.35;padding:8px 18px;background:rgba(0,0,0,.62);display:none}
+#sub b{color:var(--pink);letter-spacing:.1em;margin-right:8px;font-size:14px}
+#dmg{inset:0;position:absolute}#dmg i{position:absolute;left:50%;top:50%;width:150px;height:150px;margin:-75px;border-radius:50%;border:0 solid transparent;border-top:6px solid var(--red);filter:drop-shadow(0 0 6px var(--red))}
+#vign{inset:0;box-shadow:inset 0 0 180px rgba(255,0,30,0);transition:box-shadow .2s}
+#hint{left:50%;bottom:64px;transform:translateX(-50%);color:var(--dim);font-size:13px;letter-spacing:.1em;white-space:nowrap}
+#fade{position:fixed;inset:0;background:#dff6ff;opacity:0;pointer-events:none;transition:opacity .5s}
+/* ---------- menus ---------- */
+.menu{align-items:stretch;justify-content:flex-start;background:linear-gradient(90deg,rgba(6,8,12,.92) 0,rgba(6,8,12,.72) 38%,rgba(6,8,12,0) 72%)}
+.menu .col{width:min(520px,92vw);padding:7vh 0 4vh 6vw;display:flex;flex-direction:column;gap:6px}
+.logo{font-size:clamp(40px,6.2vw,84px);font-weight:800;line-height:.9;letter-spacing:.01em;position:relative}
+.logo span{color:var(--amber)}.logo:after{content:"";position:absolute;left:-10px;right:30%;top:52%;height:3px;background:var(--red);transform:rotate(-7deg);box-shadow:0 0 12px var(--red)}
+.tag{color:var(--dim);letter-spacing:.24em;font-size:13px;margin:14px 0 26px}
+.btn{display:block;width:100%;text-align:left;background:transparent;border:0;border-left:3px solid transparent;padding:11px 16px;font-size:22px;letter-spacing:.08em;text-transform:uppercase}
+.btn:hover,.btn:focus-visible{background:linear-gradient(90deg,rgba(255,176,48,.22),transparent);border-left-color:var(--amber);outline:0}
+.btn small{display:block;font-size:12px;color:var(--dim);letter-spacing:.1em;text-transform:none}
+.btn[disabled]{opacity:.35;cursor:default}
+.foot{margin-top:auto;color:var(--dim);font-size:12px;letter-spacing:.08em;line-height:1.5}
+.center{align-items:center;justify-content:center;background:rgba(5,7,11,.8);backdrop-filter:blur(3px)}
+.card{width:min(680px,94vw);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--amber);padding:26px 30px}
+.card h2{margin:0 0 4px;font-size:30px;letter-spacing:.12em;text-transform:uppercase}.card h2 small{font-size:13px;color:var(--dim);letter-spacing:.2em;display:block}
+.card p{color:#cfd5df;line-height:1.5;font-family:system-ui,sans-serif;font-size:15px}
+.rows{display:grid;grid-template-columns:1fr auto;gap:10px 18px;margin:18px 0;align-items:center;font-size:16px}
+.rows label{color:var(--dim);letter-spacing:.08em}.rows input[type=range]{width:210px;accent-color:var(--amber)}.rows select{font:inherit;background:#161a22;color:var(--ink);border:1px solid var(--line);padding:5px 8px}
+.rows output{display:inline-block;width:44px;text-align:right}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 22px;font-size:16px;margin:16px 0}.kv dt{color:var(--amber);letter-spacing:.08em}.kv dd{margin:0}
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}.stat div{border:1px solid var(--line);padding:10px 12px}.stat b{display:block;font-size:26px}.stat span{font-size:11px;letter-spacing:.18em;color:var(--dim)}
+.medal{font-size:20px;letter-spacing:.2em;color:var(--amber)}
+#boot{flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--bg)}
+#boot .pb{width:260px;height:4px;background:#222}#boot .pb div{height:100%;width:0;background:var(--amber);transition:width .2s}
+#doc .card{border-top-color:var(--cyan)}#doc pre{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;font-size:14px;line-height:1.55;color:#cfe9f2}
+@media (max-width:700px){#obj{max-width:60vw}#weapon .a{font-size:32px}}
+</style>
 </head>
 <body>
-  <main>
-    <h1>QUEBRA <span>NO TEMPO</span></h1>
-    <p>Iniciando a versão compilada do jogo…</p>
-    <a href="./dist/">Entrar no jogo</a>
-  </main>
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div id="vign"></div><div id="dmg"></div>
+  <div id="obj"><small>OBJETIVO</small><b id="objT"></b></div>
+  <div id="seals">SELOS <span id="sealDots"></span> <span id="sealN">0/2</span></div>
+  <div id="sector"></div><div id="saved">● SALVO</div>
+  <div id="eco">ECO CRONAL <span>Q</span> <b id="ecoN">1 carga de demonstração</b><em class="ecobar"><i id="ecoR"></i></em></div><div id="crouchTag"></div>
+  <div id="wp"><i></i><span id="wpD"></span></div>
+  <div id="vitals"><label>VIDA <b id="hpN">100</b></label><div class="bar hp"><div id="hpB"></div></div><label style="margin-top:8px">ARMADURA <b id="arN">0</b></label><div class="bar ar"><div id="arB"></div></div></div>
+  <div id="weapon"><div class="r" id="wR"></div><div class="n" id="wN"></div><div class="a"><span id="wM">0</span> <small id="wA">/ 0</small></div></div>
+  <div id="cross"><i class="d"></i><i id="c1"></i><i id="c2"></i><i id="c3"></i><i id="c4"></i></div><div id="hitm"></div>
+  <div id="prompt"></div><div id="toast"></div><div id="sub"></div><div id="hint"></div>
+</div>
+<div id="fade"></div>
+
+<div id="boot" class="layer on"><div class="logo">QUEBRA <span>NO TEMPO</span></div><div class="pb"><div id="bootP"></div></div><div id="bootT" style="color:var(--dim);letter-spacing:.2em;font-size:12px">CARREGANDO</div></div>
+
+<div id="menu" class="layer menu"><div class="col">
+  <div class="logo">QUEBRA<br><span>NO TEMPO</span></div>
+  <div class="tag">O PASSADO MENTIU. O FUTURO VAI PAGAR.</div>
+  <button class="btn" id="bCont">Continuar<small id="contInfo"></small></button>
+  <button class="btn" id="bNew">Nova campanha<small>Ato I • A1-M1 — Rua Quebrada</small></button>
+  <button class="btn" id="bMis">Missões<small>A1-M1 Rua Quebrada • A1-M2 Noite de Neon</small></button>
+  <button class="btn" id="bOpt">Opções</button>
+  <button class="btn" id="bCtl">Controles</button>
+  <div class="foot">Vertical slice A1-M1 → A1-M2 (v0.2) • revisão de design 2.2 • valores de protótipo, não balanceados em playtest.<br>Conteúdo 18+: violência estilizada e casa noturna adulta sem nudez explícita. Há opção de apresentação atenuada em Opções.</div>
+</div></div>
+
+<div id="missions" class="layer center"><div class="card">
+  <h2><small>CAMPANHA • ATO I — NOVA AURORA, 2039</small>Missões</h2>
+  <div id="misList"></div>
+</div></div>
+
+<div id="newgame" class="layer center"><div class="card">
+  <h2><small>NOVA CAMPANHA</small>Dificuldade</h2>
+  <button class="btn" data-diff="turista">Turista Temporal<small>Dano inimigo ×0,70 • mais recursos • esquiva generosa</small></button>
+  <button class="btn" data-diff="mercenario">Mercenário<small>Padrão do projeto</small></button>
+  <button class="btn" data-diff="paradoxo">Paradoxo<small>Dano inimigo ×1,30 • menos recursos • esquiva curta</small></button>
+  <button class="btn" data-back>Voltar</button>
+</div></div>
+
+<div id="options" class="layer center"><div class="card">
+  <h2><small>CONFIGURAÇÕES</small>Opções</h2>
+  <div class="rows">
+    <label>Qualidade gráfica (escala interna)</label><select id="oQ"><option value="low">Baixa • 65%</option><option value="medium">Média • 85%</option><option value="high">Alta • 100% + sombras</option></select>
+    <label>Campo de visão</label><span><input type="range" id="oF" min="65" max="95" step="1"><output id="oFv"></output></span>
+    <label>Sensibilidade da mira</label><span><input type="range" id="oS" min="0.3" max="2.5" step="0.05"><output id="oSv"></output></span>
+    <label>Inverter eixo vertical</label><input type="checkbox" id="oI">
+    <label>Volume geral</label><span><input type="range" id="oV" min="0" max="1" step="0.05"><output id="oVv"></output></span>
+    <label>Música</label><span><input type="range" id="oM" min="0" max="1" step="0.05"><output id="oMv"></output></span>
+    <label>Tremor de câmera</label><input type="checkbox" id="oK">
+    <label>Dicas de puzzle</label><input type="checkbox" id="oH">
+    <label>Apresentação atenuada (dançarinas como holograma)</label><input type="checkbox" id="oA">
+    <label>Marcador de objetivo na tela</label><input type="checkbox" id="oW">
+  </div>
+  <button class="btn" data-back>Voltar</button>
+</div></div>
+
+<div id="controls" class="layer center"><div class="card">
+  <h2><small>TECLADO + MOUSE • GAMEPAD</small>Controles</h2>
+  <dl class="kv">
+    <dt>WASD</dt><dd>Mover • <b>Shift</b> sprint • <b>CapsLock</b> caminhar</dd>
+    <dt>Mouse</dt><dd>Olhar • <b>Esq.</b> atirar • <b>Dir.</b> mira de precisão</dd>
+    <dt>Espaço</dt><dd>Saltar (segure para ir mais alto) / agarrar borda</dd>
+    <dt>Alt / Z</dt><dd>Rolar / esquivar (com direção)</dd>
+    <dt>C</dt><dd>Agachar (alterna) • durante o sprint: slide</dd>
+    <dt>F</dt><dd>Coronhada (corpo a corpo) • também quebra grades</dd>
+    <dt>E</dt><dd>Interagir</dd><dt>R</dt><dd>Recarregar</dd>
+    <dt>1 / 2 / Roda</dt><dd>Trocar arma</dd><dt>Q</dt><dd>Eco Cronal (quando houver carga)</dd>
+    <dt>V</dt><dd>Trocar ombro da câmera</dd><dt>Esc</dt><dd>Pausa / fechar camada</dd>
+    <dt>Gamepad</dt><dd>Analógicos mover/olhar • RT atirar • LT mirar • A saltar • B rolar (com direção) / agachar (parado) • X interagir/recarregar • Y trocar arma • LB Eco • L3 sprint • R3 coronhada • ↓ ombro • Start pausa</dd>
+    <dt>Por que não Ctrl?</dt><dd>Ctrl+W fecha a aba do navegador no meio do jogo; por isso agachar fica no C.</dd>
+  </dl>
+  <button class="btn" data-back>Voltar</button>
+</div></div>
+
+<div id="pause" class="layer center"><div class="card">
+  <h2><small id="pKicker">A1-M1 • RUA QUEBRADA</small>Pausado</h2>
+  <dl class="kv"><dt>Objetivo</dt><dd id="pObj"></dd><dt>Selos</dt><dd id="pSeal"></dd><dt>Segredos</dt><dd id="pSec"></dd><dt>Checkpoint</dt><dd id="pCp"></dd></dl>
+  <button class="btn" id="bResume">Retomar</button>
+  <button class="btn" id="bRestart">Reiniciar do checkpoint</button>
+  <button class="btn" id="bPOpt">Opções</button>
+  <button class="btn" id="bPCtl">Controles</button>
+  <button class="btn" id="bQuit">Sair para o menu<small>O progresso volta ao último checkpoint salvo</small></button>
+</div></div>
+
+<div id="doc" class="layer center"><div class="card"><h2><small id="docK"></small><span id="docT"></span></h2><pre id="docB"></pre><button class="btn" id="bDocClose">Fechar (Esc / E)</button></div></div>
+
+<div id="dead" class="layer center"><div class="card" style="border-top-color:var(--red)">
+  <h2><small>LINHA DO TEMPO INTERROMPIDA</small>Gael caiu</h2><p id="deadTip"></p>
+  <button class="btn" id="bRetry">Reiniciar do checkpoint</button><button class="btn" id="bDeadMenu">Sair para o menu</button>
+</div></div>
+
+<div id="results" class="layer center"><div class="card">
+  <h2><small id="rKicker">MISSÃO CONCLUÍDA • PROGRESSO SALVO</small><span id="rTitle">A1-M1 — Rua Quebrada</span></h2>
+  <div class="medal" id="rMedal"></div>
+  <div class="stat" id="rStats"></div>
+  <p id="rText"></p>
+  <button class="btn" id="bNext">Próxima missão<small>Eco Cronal e arsenal seguem com você</small></button><button class="btn" id="bReplay">Repetir missão</button><button class="btn" id="bResMenu">Menu principal</button>
+</div></div>
+
+<script type="importmap">{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }</script>
+<script type="module" src="./src/main.js"></script>
+<noscript>Este jogo precisa de JavaScript.</noscript>
 </body>
 </html>

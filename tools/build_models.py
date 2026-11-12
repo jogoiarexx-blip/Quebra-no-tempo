@@ -555,6 +555,35 @@ def make_sol_masks(rig, base, size=1024):
     return Image.fromarray(wide, 'RGB'), {n: int(a.sum()) for n, a in zip(('tecido', 'couro', 'cabelo', 'meia'), (fabric, leather, hair, stock))}
 
 
+def make_gael_masks(rig, base, size=1024):
+    """Regiões do protagonista (calculadas na textura ORIGINAL, mesmas UVs do gael.glb):
+    esquerda R = jaqueta/colete, G = calça, B = cabelo; direita R = botas, G = luvas."""
+    img = np.asarray(base.convert('RGB').resize((size, size), Image.LANCZOS)).astype(np.float32) / 255
+    pos, bone = raster_maps(rig.j, rig.bin, size)
+    x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
+    valid = ~np.isnan(x)
+    h, s, v = rgb2hsv(img)
+    jname = [rig.short[n] for n in rig.joints]
+    def bones(pred): return np.isin(bone, [k for k, n in enumerate(jname) if pred(n)])
+    head = bones(lambda n: n in ('Head', 'HeadTop_End', 'headfront', 'Neck'))
+    torso = bones(lambda n: n.startswith('Spine') or n == 'Hips' or 'Shoulder' in n or n in ('LeftArm', 'RightArm'))
+    legs = bones(lambda n: 'UpLeg' in n or n.endswith('Leg'))
+    feet = bones(lambda n: 'Foot' in n or 'Toe' in n)
+    hands = bones(lambda n: 'Hand' in n)
+    skin = (h > 10) & (h < 32) & (s > 0.25) & (s < 0.62) & (v > 0.55)
+    hair = valid & head & (y > 1.555) & (h > 27) & (h < 60) & (s > 0.2) & (v > 0.35) & ~((z > 0.02) & (y < 1.60) & (h < 31))
+    vest = valid & torso & (y > 0.96) & (y < 1.52) & (h > 8) & (h < 36) & (s > 0.28) & (v < 0.66)
+    pants = valid & (legs | bones(lambda n: n == 'Hips')) & (y > 0.3) & (y < 1.02) & ~skin & ~vest
+    boots = valid & (feet | (legs & (y <= 0.33))) & ~skin
+    gloves = valid & hands & (v < 0.45) & ~skin
+    wide = np.zeros((size, size * 2, 3), np.uint8)
+    for k, a in enumerate((vest, pants, hair, boots, gloves)):
+        ch = np.asarray(Image.fromarray((a * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.8)))
+        if k < 3: wide[:, :size, k] = ch
+        else: wide[:, size:, k - 3] = ch
+    return Image.fromarray(wide, 'RGB'), {n: int(a.sum()) for n, a in zip(('jaqueta', 'calca', 'cabelo', 'botas', 'luvas'), (vest, pants, hair, boots, gloves))}
+
+
 if __name__ == '__main__':
     if not (len(sys.argv) > 4 and sys.argv[4] == 'masks'):
         main()
@@ -562,3 +591,7 @@ if __name__ == '__main__':
     mask, rep = make_sol_masks(V, images_of(V)[1])
     mask.save(sys.argv[3] + '/sol_masks.png', optimize=True)
     print('máscaras', rep)
+    Gr = Rig(sys.argv[1])
+    gm, grep_ = make_gael_masks(Gr, images_of(Gr)[1])
+    gm.save(sys.argv[3] + '/gael_masks.png', optimize=True)
+    print('máscaras gael', grep_)

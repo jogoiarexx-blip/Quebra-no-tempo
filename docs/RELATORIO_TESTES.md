@@ -1,5 +1,28 @@
 # Testes — executados x pendentes
 
+## v0.2.0
+
+Executados em Chromium headless contra o repositório servido em subpasta (`/quebra-no-tempo/`, igual ao Pages),
+sem build: `node tools/play.cjs tools/<teste>.cjs`.
+
+| Teste | Resultado |
+|---|---|
+| `t_run.cjs` — A1-M1 completa | passou; libera A1-M2 |
+| `t_move.cjs` — passarela 10×, fosso, Eco, checkpoint + recarregar página, camadas 30× | passou (10/10 travessias) |
+| `t_a1m2.cjs` — A1-M2 completa com mira e tiro reais nos combates, teclado no corredor (C sob a viga, C para levantar, Espaço na estante), câmera, elevador, relés, trem, Fenda | passou 5 vezes seguidas depois da correção do softlock |
+| `t_a1m2.cjs` — opcionais | jukebox→3-0-1→VIP→cofre (3º selo); grade do banheiro + duto agachado até os bastidores; coronhada (65→25 HP + atordoamento) |
+| `t_a1m2.cjs` — regras | arma no coldre não dispara na zona social; ficar em pé sob a viga não passa |
+| `t_lean.cjs` — mira | tronco e mãos variam de forma monotônica com o ângulo e voltam ao normal ao soltar a mira |
+
+Bugs achados pelos testes e corrigidos: invasor preso na parede da recepção impedia o fim da invasão (softlock);
+inimigos morriam ao nascer no túnel (regra antiga de queda); coronhada passava acima de grades baixas; mira
+acumulando rotação no tronco (o bug que você reportou); rolamento nunca executava.
+
+Pendente: playtest humano das duas missões, gamepad físico, FPS em GPU real e celular.
+
+## v0.1.0
+
+
 Executados em Chromium headless (WebGL por software) contra o **build de produção servido em subdiretório**
 (`/quebra-no-tempo/`), com `node tools/play.cjs tools/<teste>.cjs`. A simulação é avançada em passos fixos de 1/60 s.
 Nenhum teste abaixo substitui playtest humano.
