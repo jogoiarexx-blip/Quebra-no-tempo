@@ -10,7 +10,7 @@ import { applyResourcePickup, chooseEnemyDrop } from './loot.js';
 import { loadCharacters } from './characters.js';
 import { initTouch } from './touch.js';
 import { NPC } from './npcs.js';
-import { P, createPlayer, resetPlayer, updatePlayer, updateCamera, giveWeapon, switchWeapon, setHolster, unlockEco, damagePlayer, WEAPONS, AMMO_CAP } from './player.js';
+import { P, createPlayer, resetPlayer, updatePlayer, updateCamera, giveWeapon, switchWeapon, cycleWeapon, setHolster, unlockEco, damagePlayer, WEAPONS, AMMO_CAP } from './player.js';
 import { enemies, createEnemyPools, initEnemyList } from './enemies.js';
 import { initFx, updateFx, sparks, flash, shake, makeSeal, makeGate, makePortal } from './fx.js';
 import { audio, initAudio, setVolumes, setPaused, setIntensity, setTrack, setMusic, setAlarm, sfx } from './audio.js';
@@ -18,10 +18,11 @@ import { loadAll, commit, SAVE_SCHEMA, CONTENT_VERSION, setSimulateSaveFailure }
 import a1m1 from './missions/a1m1.js';
 import a1m2 from './missions/a1m2.js';
 import a1m3 from './missions/a1m3.js';
+import a1m4 from './missions/a1m4.js';
 import { improveMissionScenery } from './scenery-details.js';
 
-const MISSIONS = { 'A1-M1': a1m1, 'A1-M2': a1m2, 'A1-M3': a1m3 };
-const ORDER = ['A1-M1', 'A1-M2', 'A1-M3'];
+const MISSIONS = { 'A1-M1': a1m1, 'A1-M2': a1m2, 'A1-M3': a1m3, 'A1-M4': a1m4 };
+const ORDER = ['A1-M1', 'A1-M2', 'A1-M3', 'A1-M4'];
 const $ = (id) => document.getElementById(id);
 const MX = CFG.missionExit;
 let store = loadAll();
@@ -132,7 +133,7 @@ const X = {
   get S() { return G.S; }, get L() { return L; }, P, enemies, sfx, camera, settings: G.settings,
   get activeGroups() { return activeGroups; }, get portal() { return portal; }, get playing() { return ui.mode === 'play'; }, get campaign() { return store.campaign; },
   fx: { sparks, flash, shake },
-  say, toast, after, once, setDoor, grantSeal, saveCheckpoint, gateStable, refreshPickups, giveWeapon, switchWeapon, setHolster, damagePlayer,
+  say, toast, after, once, setDoor, grantSeal, saveCheckpoint, gateStable, refreshPickups, giveWeapon, switchWeapon, cycleWeapon, setHolster, damagePlayer,
   hasTimers: () => timers.length > 0,
   openDoc(d) { $('docK').textContent = d.k; $('docT').textContent = d.t; $('docB').textContent = d.b; push('doc'); },
   startGroup(id, spawn = true) { if (activeGroups.has(id) || G.S.groupsDone.includes(id)) return; activeGroups.set(id, { spawned: false }); if (spawn) X.spawnGroup(id); },
@@ -226,12 +227,13 @@ G.hooks.onEnemyKilled = (e) => {
 };
 G.hooks.onShootCollider = (c, dmg, point) => {
   if (c.barrel && dmg > 0) { const b = L.barrels.find((x) => x.id === c.barrel); if (b && b.alive) { b.hp -= dmg; if (b.hp <= 0) explodeBarrel(b); } }
-  if (mission.onShootCollider) mission.onShootCollider(X, c, dmg, point);
+  if (mission.onShootCollider) return mission.onShootCollider(X, c, dmg, point);
+  return 0;
 };
 function explodeBarrel(b) { b.alive = false; b.mesh.visible = false; b.col.enabled = false; G.S.destroyed.push(b.id); enemies.explode(b.pos, mission.barrelRadius ? mission.barrelRadius(b.id) : 5.5, 130); }
 
 function collect(type, amount) {
-  if (['ammo9', 'shells', 'medkit', 'armor'].includes(type)) {
+  if (['ammo9', 'shells', 'rockets', 'medkit', 'armor'].includes(type)) {
     const gain = applyResourcePickup(P, type, amount, resourceLimits());
     if (!gain) return false;
     toast(`+${Math.ceil(gain)} ${PICKUPS[type].label}`, 1.3);
@@ -262,7 +264,7 @@ function tick(dt) {
     else if (a.spawned && enemies.aliveInGroup(id) === 0) { activeGroups.delete(id); S.groupsDone.push(id); if (mission.onGroupDone) mission.onGroupDone(X, id); }
   }
   mission.tick(X, dt);
-  setIntensity(enemies.activeAlive() > 0 ? 1 : 0);
+  setIntensity(enemies.activeAlive() > 0 || mission.bossHud?.(X) ? 1 : 0);
 }
 function runExit(dt) {
   const q = exitSeq; q.t += dt;
@@ -283,7 +285,7 @@ function runExit(dt) {
 }
 function showResults(acc) {
   const S = G.S, t = S.stats.time, mm = Math.floor(t / 60), ss = String(Math.floor(t % 60)).padStart(2, '0');
-  const pts = (t < 16 * 60 ? 1 : 0) + (acc > 0.45 ? 1 : 0) + (S.stats.dmgTaken < 150 ? 1 : 0) + (S.secrets.length >= 2 ? 1 : 0) + (S.seals.length >= 3 ? 1 : 0);
+  const pts = (t < 16 * 60 ? 1 : 0) + (acc > 0.45 ? 1 : 0) + (S.stats.dmgTaken < 150 ? 1 : 0) + (S.secrets.length >= 2 ? 1 : 0) + (S.seals.length >= mission.sealsAvailable ? 1 : 0);
   $('rKicker').textContent = `MISSÃO CONCLUÍDA • PROGRESSO SALVO`; $('rTitle').textContent = `${mission.id} — ${mission.name}`;
   $('rMedal').textContent = pts >= 4 ? '★ MEDALHA DE OURO' : pts >= 2 ? '★ MEDALHA DE PRATA' : '★ MEDALHA DE BRONZE';
   const st = [['TEMPO', `${mm}:${ss}`], ['PRECISÃO', `${Math.round(acc * 100)}%`], ['INIMIGOS', `${S.stats.kills}`], ['SELOS', `${S.seals.length}/${mission.sealsAvailable}`], ['SEGREDOS', `${S.secrets.length}/${mission.secretsTotal}`], ['QUEDAS', `${S.stats.deaths}`]];
@@ -309,7 +311,7 @@ function refreshMenu() {
   store = loadAll(); store.campaign.flags = store.campaign.flags || {};
   const cp = store.checkpoint, np = nextPlayable();
   $('bCont').disabled = !cp && !np;
-  $('contInfo').textContent = cp ? `${cp.missionId} • ${cp.checkpointId.toUpperCase()} • ${DIFF[cp.difficulty]?.name || ''}` : np ? `${np} — ${MISSIONS[np].name} (início)` : (store.campaign.completed['A1-M3'] ? 'Três missões concluídas — repita pelo menu Missões' : 'Nenhum checkpoint salvo');
+  $('contInfo').textContent = cp ? `${cp.missionId} • ${cp.checkpointId.toUpperCase()} • ${DIFF[cp.difficulty]?.name || ''}` : np ? `${np} — ${MISSIONS[np].name} (início)` : (store.campaign.completed['A1-M4'] ? 'Ato I concluído — quatro missões disponíveis para repetir' : 'Nenhum checkpoint salvo');
   $('bMis').disabled = store.campaign.unlocked.length < 1;
   $('misList').innerHTML = ORDER.map((id) => { const m = MISSIONS[id], un = store.campaign.unlocked.includes(id), dn = store.campaign.completed[id];
     return `<button class="btn" data-mission="${id}" ${un ? '' : 'disabled'}>${id} — ${m.name}<small>${dn ? `Concluída • melhor tempo ${Math.floor(dn.time / 60)}:${String(Math.floor(dn.time % 60)).padStart(2, '0')} • selos ${dn.seals}/${m.sealsAvailable}` : un ? 'Disponível' : 'Bloqueada — conclua a missão anterior'}</small></button>`; }).join('') + `<button class="btn" data-back>Voltar</button>`;
@@ -325,6 +327,8 @@ function updateHud() {
   const S = G.S, req = mission.sealsRequired; setTxt('objT', mission.objective(X));
   const n = Math.min(S.seals.length, req); setTxt('sealN', `${n}/${req}`);
   if (hudCache.sealDots !== n + '/' + req) { hudCache.sealDots = n + '/' + req; const box = $('sealDots'); box.innerHTML = Array.from({ length: req }, (_, i) => `<i class="${i < n ? 'got' : ''}"></i>`).join(''); }
+  const boss=mission.bossHud?.(X);$('bossHud').style.display=boss?'block':'none';
+  if(boss){setTxt('bossName',boss.name+' • ETAPA '+boss.phase+'/3');setTxt('bossAction',boss.text);$('bossFill').style.width=(100*boss.hp/boss.maxHp)+'%';$('bossFill').style.background=boss.exposed?'#5effb5':'#ff6c49';}
   setTxt('sector', mission.sectorNames[mission.sectorAt(P.body.pos)] || '');
   setTxt('hpN', String(Math.ceil(P.hp))); setTxt('arN', String(Math.ceil(P.armor)));
   $('hpB').style.width = P.hp + '%'; $('arB').style.width = P.armor + '%';
@@ -425,7 +429,7 @@ async function boot() {
   loadMission(cp && MISSIONS[cp.missionId] ? cp.missionId : 'A1-M1');
   G.S = newS(mission); applyWorldState(); resetPlayer({ ...L.pts.spawn });
   initInput(canvas, () => { if (simActive() && !input.freeLook) { fillPause(); push('pause'); } });
-  touchControls = initTouch({ isPlaying: simActive, pause: back, switchWeapon: () => switchWeapon(P.current === 'martelo9' ? 'trovao_duplo' : 'martelo9') });
+  touchControls = initTouch({ isPlaying: simActive, pause: back, switchWeapon: cycleWeapon });
   addEventListener('blur', () => { if (simActive()) back(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && simActive()) back(); });
   $('bFullscreen').addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen?.(); else document.documentElement.requestFullscreen?.().catch(() => {}); });

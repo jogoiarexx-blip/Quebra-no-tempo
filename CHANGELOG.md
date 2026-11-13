@@ -1,3 +1,14 @@
+# v0.8.0 — 12/11/2026
+
+- A1-M4 **Núcleo de Ruptura**: avenida destruída, alimentadores do gerador, armaria, duto secreto, registro de memória falsa e plataforma do reator.
+- Leviatã de Aço procedural com três etapas, barra própria, metralha/perfuração/descarga sinalizadas, válvulas e propulsores como duas aberturas, auxiliares limitados e arena em dois níveis.
+- Rompe-Casco: foguete visível com voo e colisão, área, autolesão, recursos próprios e ciclo de três armas PC/celular/gamepad. Arsenal antigo é normalizado sem perder o equipamento anterior.
+- Quatro checkpoints; retomada antes do chefe reinicia o confronto completo. A derrota concede um único selo (1/1), libera a ponte e permite estabilizar o portal.
+- A1-M3 libera A1-M4; migração também atende saves com a Usina já concluída. Conclusão do Ato I permanece condicionada à gravação confirmada.
+- 75 testes Node locais aprovados. O workflow cobre WebGL das quatro missões, foguete real, blindagem/abertura, checkpoints e conclusão transacional; capturas em `qnt-v080-qa`.
+- Revisão corrigiu queda sem retorno, posição segura no painel, colisão de foguete na face da parede, dano direto de 125, precisão de combate e orientação das placas.
+- [Fase detalhada, regras, economia e limites de verificação](docs/A1_M4_NUCLEO_DE_RUPTURA.md). Ato II ainda não implementado.
+
 # v0.7.1 — 12/11/2026
 
 - Corrigida a adaptação A-pose → T-pose do NPC enviado: mãos e cotovelos permanecem no lado anatômico correto, sem atravessar o tronco.

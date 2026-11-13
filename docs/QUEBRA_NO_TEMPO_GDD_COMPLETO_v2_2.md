@@ -2840,3 +2840,8 @@ M1/M2 recebem detalhes de cenário estáticos sem mudar colisores. O E02 passa a
 ### Ajuste de implementação v0.7.1
 
 O NPC masculino enviado agora representa **Nico**, cliente do Véspera com conversa e evacuação; Maya mantém o modelo e papel de performer. A adaptação A-pose do cliente foi corrigida para conservar a posição anatômica dos braços. Reiniciar missão/checkpoint limpa comandos pendentes, e os deltas da câmera não se repetem entre ticks de um mesmo frame.
+
+
+### Estado implementado — v0.8.0 (12/11/2026)
+
+A1-M4 **Núcleo de Ruptura** encerra o Ato I com avenida destruída, dois alimentadores, armaria, arena em dois níveis e Leviatã de Aço em três etapas. O jogador expõe o núcleo por válvulas ou propulsores; Rompe-Casco usa foguete em voo, área e autolesão. A derrota concede o único Selo (1/1); estabilizar o console do reator e interagir com a Fenda conclui a missão após save confirmado. A1-M3 já liga à quarta missão e saves antigos concluídos recebem o desbloqueio. A2-M1 e demais atos continuam especificados. [Detalhamento implementado, mapa por setores, chefe, recursos e checkpoints](A1_M4_NUCLEO_DE_RUPTURA.md). Duração, balanceamento e FPS mobile continuam hipóteses até medição/playtest.

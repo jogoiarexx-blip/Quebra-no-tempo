@@ -31,6 +31,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 #wp{left:0;top:0;transform:translate(-50%,-50%);display:none;text-align:center;filter:drop-shadow(0 1px 3px #000)}
 #wp i{display:block;width:14px;height:14px;margin:0 auto 3px;border:2px solid var(--amber);transform:rotate(45deg);background:rgba(255,176,48,.25)}
 #wp span{font-size:12px;letter-spacing:.12em;color:var(--amber)}#wp.edge i{background:var(--amber)}
+#bossHud{left:50%;top:116px;transform:translateX(-50%);width:min(560px,70vw);padding:8px 12px;background:rgba(8,13,20,.82);border:1px solid #8c5442;text-align:center;display:none}#bossName{font-size:12px;letter-spacing:.16em}#bossTrack{height:8px;background:#202b34;margin:6px 0}#bossFill{height:100%;background:#ff6c49;transition:width .12s}#bossAction{font-size:12px;color:#ffcb73;letter-spacing:.04em}@media(max-width:700px){#bossHud{top:126px;width:76vw}#bossAction{font-size:10px}}
 #weapon{right:24px;bottom:24px;text-align:right}
 #weapon .n{font-size:13px;letter-spacing:.22em;color:var(--amber)}#weapon .a{font-size:44px;font-weight:700;line-height:1}#weapon .a small{font-size:20px;color:var(--dim);font-weight:400}
 #weapon .r{font-size:12px;letter-spacing:.2em;color:var(--red);height:14px}
@@ -87,7 +88,8 @@ button{font:inherit;color:inherit;cursor:pointer}
   <div id="eco">ECO CRONAL <span>Q</span> <b id="ecoN">1 carga de demonstração</b><em class="ecobar"><i id="ecoR"></i></em></div><div id="crouchTag"></div>
   <div id="wp"><i></i><span id="wpD"></span></div>
   <div id="vitals"><label>VIDA <b id="hpN">100</b></label><div class="bar hp"><div id="hpB"></div></div><label style="margin-top:8px">ARMADURA <b id="arN">0</b></label><div class="bar ar"><div id="arB"></div></div></div>
-  <div id="weapon"><div class="r" id="wR"></div><div class="n" id="wN"></div><div class="a"><span id="wM">0</span> <small id="wA">/ 0</small></div></div>
+  <div id="bossHud" role="status" aria-label="Estado do chefe"><div id="bossName"></div><div id="bossTrack"><div id="bossFill"></div></div><div id="bossAction"></div></div>
+<div id="weapon"><div class="r" id="wR"></div><div class="n" id="wN"></div><div class="a"><span id="wM">0</span> <small id="wA">/ 0</small></div></div>
   <div id="cross"><i class="d"></i><i id="c1"></i><i id="c2"></i><i id="c3"></i><i id="c4"></i></div><div id="hitm"></div>
   <div id="prompt"></div><div id="toast"></div><div id="sub"></div><div id="hint"></div>
 </div>
@@ -100,10 +102,10 @@ button{font:inherit;color:inherit;cursor:pointer}
   <div class="tag">O PASSADO MENTIU. O FUTURO VAI PAGAR.</div>
   <button class="btn" id="bCont">Continuar<small id="contInfo"></small></button>
   <button class="btn" id="bNew">Nova campanha<small>Ato I • A1-M1 — Rua Quebrada</small></button>
-  <button class="btn" id="bMis">Missões<small>Rua Quebrada • Noite de Neon • Usina Norte</small></button>
+  <button class="btn" id="bMis">Missões<small>Rua Quebrada • Noite de Neon • Usina Norte • Núcleo de Ruptura</small></button>
   <button class="btn" id="bOpt">Opções</button>
   <button class="btn" id="bCtl">Controles</button>
-  <div class="foot">Campanha A1-M1 → A1-M3 (v0.7.1) • revisão de design 2.2 • valores de protótipo, não balanceados em playtest.<br>Conteúdo 18+: violência estilizada e casa noturna adulta sem nudez explícita. Há opção de apresentação atenuada em Opções.</div>
+  <div class="foot">Ato I completo • A1-M1 → A1-M4 (v0.8.0) • revisão de design 2.2 • valores de protótipo, não balanceados em playtest.<br>Conteúdo 18+: violência estilizada e casa noturna adulta sem nudez explícita. Há opção de apresentação atenuada em Opções.</div>
 </div></div>
 
 <div id="missions" class="layer center"><div class="card">
@@ -146,7 +148,7 @@ button{font:inherit;color:inherit;cursor:pointer}
     <dt>C</dt><dd>Agachar (alterna) • durante o sprint: slide</dd>
     <dt>F</dt><dd>Coronhada (corpo a corpo) • também quebra grades</dd>
     <dt>E</dt><dd>Interagir</dd><dt>R</dt><dd>Recarregar</dd>
-    <dt>1 / 2 / Roda</dt><dd>Trocar arma</dd><dt>Q</dt><dd>Eco Cronal (quando houver carga)</dd>
+    <dt>1 / 2 / 3 / Roda</dt><dd>Trocar arma</dd><dt>Q</dt><dd>Eco Cronal (quando houver carga)</dd>
     <dt>V</dt><dd>Trocar ombro da câmera</dd><dt>Esc</dt><dd>Pausa / fechar camada</dd>
     <dt>Gamepad</dt><dd>Analógicos mover/olhar • RT atirar • LT mirar • A saltar • B rolar (com direção) / agachar (parado) • X interagir/recarregar • Y trocar arma • LB Eco • L3 sprint • R3 coronhada • ↓ ombro • Start pausa</dd>
     <dt>Por que não Ctrl?</dt><dd>Ctrl+W fecha a aba do navegador no meio do jogo; por isso agachar fica no C.</dd>

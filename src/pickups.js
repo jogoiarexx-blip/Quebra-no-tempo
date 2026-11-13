@@ -5,6 +5,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 export const PICKUPS = Object.freeze({
   ammo9: { label: 'MUNIÇÃO 9 mm', color: 0xffb030 },
   shells: { label: 'CARTUCHOS', color: 0xff593f },
+  rockets: {label:'FOGUETES',color:0xf1e55f},
   medkit: { label: 'VIDA', color: 0x55ef83 },
   armor: { label: 'PROTEÇÃO', color: 0x35d9ff },
   pecas: { label: 'PEÇAS CRONAIS', color: 0xc28aff },
@@ -48,6 +49,8 @@ function build(type) {
       cyl('mark', .059, .07, x, -.09, 0);
       cyl('mark', .047, .012, x, .171, 0);
     }
+  } else if (type === 'rockets') {
+    for(const x of [-.12,.12]){cyl('body',.075,.48,x,0,0);part('accent',new THREE.ConeGeometry(.075,.18,8),x,.33,0);box('mark',.23,.10,.045,x,-.19,0);box('mark',.045,.10,.23,x,-.19,0);}
   } else if (type === 'armor') {
     const shape = new THREE.Shape();
     shape.moveTo(-.23, -.27); shape.lineTo(.23, -.27); shape.lineTo(.23, .10);

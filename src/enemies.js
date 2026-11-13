@@ -276,10 +276,12 @@ export const enemies = {
     }
     return best;
   },
-  explode(pos, radius, dmg) {
-    for (const e of this.all) { if (!e.active || !e.alive) continue; const d = e.body.pos.distanceTo(pos); if (d < radius && lineOfSight(pos.x, pos.y + 0.3, pos.z, e.body.pos.x, e.body.pos.y + 1, e.body.pos.z)) { e.damage(dmg * (1 - d / radius * 0.6), 'torso', _d.copy(e.body.pos).sub(pos).normalize()); e.stagger = Math.max(e.stagger, 0.9); } }
-    const dp = P.body.pos.distanceTo(pos); if (dp < radius) damagePlayer(40 * (1 - dp / radius), pos);
+  explode(pos, radius, dmg, selfDamage = 40, exclude = null) {
+    let hits=0,kills=0;
+    for (const e of this.all) { if (!e.active || !e.alive || e === exclude) continue; const d = e.body.pos.distanceTo(pos); if (d < radius && lineOfSight(pos.x, pos.y + 0.3, pos.z, e.body.pos.x, e.body.pos.y + 1, e.body.pos.z)) { hits++;if(e.damage(dmg * (1 - d / radius * 0.6), 'torso', _d.copy(e.body.pos).sub(pos).normalize()))kills++; e.stagger = Math.max(e.stagger, 0.9); } }
+    const dp = P.body.pos.distanceTo(pos); if (selfDamage > 0 && dp < radius) damagePlayer(selfDamage * (1 - dp / radius), pos);
     sparks(pos, 0xffa030, 60, 9, 0.8); flash(pos, radius * 0.8, 0.35, 0xffb040); sfx.explosion(); shake(0.5 * Math.max(0, 1 - dp / 25));
+    return {hits,kills};
   },
 };
 export function initEnemyList() { enemies.all = [...pool.E01, ...pool.E02, ...pool.DRONE]; }

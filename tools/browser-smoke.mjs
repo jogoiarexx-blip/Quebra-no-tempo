@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {verifyNucleo} from './nucleo-smoke.mjs';
 fs.mkdirSync('qa/screenshots',{recursive:true});
 const server=spawn('python3',['-m','http.server','8080','--bind','127.0.0.1'],{stdio:'ignore'});
 let browser;
@@ -22,11 +23,11 @@ try{
     QNT.X.toast('QA_OLD_NOTICE',60);QNT.startMission(id,null);return{notice:document.getElementById('toast').textContent,dx:QNT.input.mouseDX,dy:QNT.input.mouseDY,keys:QNT.input.keys.size,lmb:QNT.input.lmb,pitch:QNT.P.pitch};
    },id);const {notice,...neutral}=cleared;assert.notEqual(notice,'QA_OLD_NOTICE');assert.deepEqual(neutral,{dx:0,dy:0,keys:0,lmb:false,pitch:-.05});await page.waitForTimeout(750);await page.bringToFront();await page.evaluate(()=>{if(QNT.ui.stack.at(-1)==='pause')QNT.back();});};
  const shot=async name=>{await page.bringToFront();await page.evaluate(()=>{if(QNT.ui.stack.at(-1)==='pause')QNT.back();if(QNT.ui.mode==='play'&&!QNT.ui.stack.length)QNT.updateCamera(1/60);});await page.waitForTimeout(250);await page.screenshot({path:`qa/screenshots/${name}.png`});};
- for(const id of ['A1-M1','A1-M2','A1-M3']){
+ for(const id of ['A1-M1','A1-M2','A1-M3','A1-M4']){
   await start(id);
   const info=await page.evaluate(()=>({id:QNT.mission.id,mode:QNT.ui.mode,gate:QNT.gate.group.children.length,actions:Object.keys(QNT.P.actor.actions),programs:QNT.G.renderer.info.programs.length,details:QNT.L.sceneryDetails?.stats}));
   assert.equal(info.id,id);assert.equal(info.mode,'play');assert.ok(info.gate>=7&&info.programs>0);assert.ok(info.actions.includes('CrouchIdle')&&info.actions.includes('CrouchWalk'));
-  if(id!=='A1-M3'){assert.ok(info.details.triangles>2500&&info.details.triangles<=35000);assert.ok(info.details.drawCalls<=24);}
+  if(id==='A1-M1'||id==='A1-M2'){assert.ok(info.details.triangles>2500&&info.details.triangles<=35000);assert.ok(info.details.drawCalls<=24);}
   const cast=await page.evaluate(()=>({e01:QNT.enemies.list.filter(e=>e.type==='E01').map(e=>e.actor.assetName),pig:QNT.enemies.list.find(e=>e.type==='E02').actor.mesh.geometry.index.count/3,jill:QNT.L.jill&&{asset:QNT.L.jill.actor.assetName,pos:QNT.L.jill.home.toArray(),clip:QNT.L.jill.actor.current},bartenders:QNT.L.npcs.filter(n=>n.name==='Jill'||n.name==='Basso').map(n=>n.name),guest:QNT.L.guest?.actor.assetName,maya:QNT.L.performers?.find(n=>n.name==='Maya')?.actor.assetName}));
   assert.ok(cast.e01.length>0&&cast.e01.every(n=>n==='E01'));assert.ok(cast.pig>=18000&&cast.pig<=22000);
   if(id==='A1-M1'){
@@ -74,7 +75,12 @@ try{
    await page.evaluate(()=>{QNT.P.body.pos.set(-4,8.01,177);QNT.P.yaw=.45;QNT.P.pitch=.07;});await shot('m3-usina-terraco');
    await page.evaluate(()=>{const q=QNT;q.interactables().find(i=>i.text==='Atravessar a Fenda de Saída').use();for(let i=0;i<140;i++)q.tick(1/60);});
    assert.equal(await page.evaluate(()=>QNT.ui.stack.at(-1)),'results');assert.ok(await page.evaluate(()=>QNT.store.campaign.completed['A1-M3']));
+   assert.ok(await page.evaluate(()=>QNT.store.campaign.unlocked.includes('A1-M4')));await page.locator('#bNext').click();await page.waitForFunction(()=>QNT.mission.id==='A1-M4'&&QNT.ui.mode==='play');
    console.log('Usina: rota de objetivos, defesa, backup, checkpoint e conclusão OK',result);
+  }
+  if(id==='A1-M4'){
+   await page.evaluate(()=>{QNT.P.iframe=999;QNT.P.body.pos.set(0,.001,7);QNT.P.yaw=0;QNT.P.pitch=.06;});await shot('m4-avenida-contencao');
+   await verifyNucleo(page,shot);
   }
   console.log('WebGL OK',info);
  }
@@ -87,7 +93,7 @@ try{
   const r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});r.setSize(1280,720);r.render(sc,cam);r.domElement.id='qa-preview';r.domElement.style.cssText='position:fixed;inset:0;z-index:9999;width:100vw;height:100vh';document.body.append(r.domElement);
   return{draws:r.info.render.calls,triangles:r.info.render.triangles};
  });
- assert.ok(pickups.draws<=24);console.log('Galeria de recursos',pickups);await shot('recursos');
+ assert.ok(pickups.draws<=28);console.log('Galeria de recursos',pickups);await shot('recursos');
  await page.evaluate(async()=>{
   document.getElementById('qa-preview').remove();const THREE=await import('/vendor/three/three.module.min.js'),{Actor}=await import('/src/characters.js');
   const sc=new THREE.Scene();sc.background=new THREE.Color(0x29313b);sc.add(new THREE.HemisphereLight(0xffffff,0x7b8297,3));const light=new THREE.DirectionalLight(0xffffff,2.4);light.position.set(3,6,5);sc.add(light);

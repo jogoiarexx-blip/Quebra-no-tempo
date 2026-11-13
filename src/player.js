@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { G, CFG, diff } from './state.js';
 import { input, down, hit, resetInput } from './input.js';
-import { moveBody, boxFree, raycast, solidOnly } from './physics.js';
+import { moveBody, boxFree, raycast, solidOnly, lineOfSight } from './physics.js';
 import { Actor } from './characters.js';
 import { sfx } from './audio.js';
 import { sparks, tracer, flash, shake } from './fx.js';
@@ -10,11 +10,9 @@ const sectorAt = (p) => (G.mission ? G.mission.sectorAt(p) : 'none');
 const STAND_H = 1.8, CROUCH_H = 1.1, SLIDE_H = 1.0;
 
 const GRAV = 24, JUMP_V = Math.sqrt(2 * GRAV * 1.25);
-export const WEAPONS = {
-  martelo9: { name: 'MARTELO-9', dmg: 24, rate: 4, mag: 15, reload: 1.25, pellets: 1, spread: 0.012, adsSpread: 0.003, kick: 0.012, ammo: 'ammo9', range: 90, auto: true },
-  trovao_duplo: { name: 'TROVÃO DUPLO', dmg: 10, rate: 0.75 * 2, mag: 2, reload: 1.7, pellets: 10, spread: 0.075, adsSpread: 0.055, kick: 0.05, ammo: 'shells', range: 28, auto: false },
-};
-export const AMMO_CAP = { ammo9: 135, shells: 24 };
+import { WEAPONS, AMMO_CAP, normalizeArsenal, nextWeaponId } from './weapon-data.js';
+import {launchRocket,stepRocket,rocketSelfDamage,ROCKET_RADIUS} from './rocket.js';
+export {WEAPONS,AMMO_CAP};
 
 export const P = {
   body: { pos: new THREE.Vector3(), vel: new THREE.Vector3(), hw: 0.35, h: 1.8, grounded: true },
@@ -28,6 +26,7 @@ export const P = {
   hitDirs: [],
 };
 let actor, gun, guns = {}, spin, ghostPool = [];
+const rocketPool=[];
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quaternion(), _qd = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ');
 
 export function createPlayer(scene) {
@@ -39,9 +38,16 @@ export function createPlayer(scene) {
   pistol.add(new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.07, 0.3).translate(0, 0.02, 0.13), steel), new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.14, 0.06).translate(0, -0.06, 0.0), dark));
   const shot = new THREE.Group();
   shot.add(new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 0.62).translate(-0.02, 0.03, 0.3), steel), new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 0.62).translate(0.02, 0.03, 0.3), steel), new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.09, 0.34).translate(0, -0.02, -0.12), wood));
-  guns = { martelo9: pistol, trovao_duplo: shot };
-  gun = new THREE.Group(); gun.add(pistol, shot); pistol.visible = shot.visible = false; scene.add(gun);
+  const launcher=new THREE.Group();
+  const tube=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,.72,10),dark);tube.rotation.x=Math.PI/2;tube.position.z=.12;launcher.add(tube);
+  const sight=new THREE.Mesh(new THREE.BoxGeometry(.035,.10,.08),steel);sight.position.set(0,.11,.18);launcher.add(sight);
+  const grip=new THREE.Mesh(new THREE.BoxGeometry(.065,.17,.07),wood);grip.position.set(0,-.11,-.08);launcher.add(grip);
+  guns = { martelo9: pistol, trovao_duplo: shot, rompe_casco:launcher };
+  gun = new THREE.Group(); gun.add(pistol, shot, launcher); pistol.visible = shot.visible = launcher.visible = false; scene.add(gun);
   for (let i = 0; i < 10; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshBasicMaterial({ color: 0x35e6ff, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false })); m.visible = false; scene.add(m); ghostPool.push(m); }
+  for(let i=0;i<6;i++){
+    const m=new THREE.Mesh(new THREE.ConeGeometry(.065,.32,8),new THREE.MeshBasicMaterial({color:0xffc65b}));m.rotation.x=Math.PI/2;m.visible=false;scene.add(m);rocketPool.push({mesh:m,shot:null});
+  }
   P.actor = actor;
   return actor;
 }
@@ -50,8 +56,8 @@ export function resetPlayer(snap) {
   resetInput();
   P.body.pos.set(snap.x, snap.y, snap.z); P.body.vel.set(0, 0, 0); P.yaw = P.facing = snap.yaw || 0; P.pitch = -0.05;
   P.hp = snap.hp ?? CFG.player.maxHealth; P.armor = snap.armor ?? 0; P.dead = false; P.deadT = 0; P.state = 'GROUNDED';
-  P.weapons = JSON.parse(JSON.stringify(snap.weapons || { martelo9: { have: false, mag: 15 }, trovao_duplo: { have: false, mag: 2 } }));
-  P.ammo = { ...(snap.ammo || { ammo9: 0, shells: 0 }) }; P.current = snap.current || null;
+  Object.assign(P,normalizeArsenal(snap));
+  for(const r of rocketPool){r.shot=null;r.mesh.visible=false;}
   P.reloadT = 0; P.fireCd = 0; P.rollT = 0; P.mantle = null; P.iframe = 0; P.bloom = 0; P.inputLock = 0.3;
   P.eco.buf.length = 0; P.eco.teaser = false; P.eco.recharge = 0; P.eco.unlocked = !!snap.ecoUnlocked; P.eco.charges = P.eco.unlocked ? CFG.eco.maxCharges : 0;
   P.hitDirs.length = 0; P.ads = false; P.crouch = false; P.slideT = 0; P.meleeCd = 0; P.meleeT = 0; P.body.h = STAND_H; P.cameraHeight = STAND_H; P.holster = !!snap.holster;
@@ -63,6 +69,7 @@ function showGun() { for (const k in guns) guns[k].visible = P.current === k && 
 export function setHolster(v) { P.holster = v; showGun(); }
 export function unlockEco() { P.eco.unlocked = true; P.eco.teaser = false; P.eco.charges = CFG.eco.maxCharges; P.eco.recharge = 0; }
 export function giveWeapon(id) { const w = P.weapons[id]; if (!w.have) { w.have = true; w.mag = WEAPONS[id].mag; } P.current = id; showGun(); }
+export function cycleWeapon(){const id=nextWeaponId(P);if(id)switchWeapon(id);}
 export function switchWeapon(id) { if (P.weapons[id] && P.weapons[id].have && P.current !== id) { P.current = id; P.reloadT = 0; P.fireCd = 0.25; showGun(); sfx.reload(); } }
 
 export function damagePlayer(amount, from) {
@@ -121,6 +128,14 @@ function fire(enemies) {
   (P.current === 'martelo9' ? sfx.pistol : sfx.shotgun)();
   const spread = (P.ads ? w.adsSpread : w.spread) + P.bloom + (P.speed > 4 ? 0.006 : 0) + (P.body.grounded ? 0 : 0.02);
   flash(P.muzzle, P.current === 'martelo9' ? 0.16 : 0.3, 0.05);
+  if(w.projectile){
+    const o=P.camPos.clone().addScaledVector(P.fwd,P.camDist+.2),dir=P.fwd.clone();
+    let distance=w.range;const wall=raycast(o.x,o.y,o.z,dir.x,dir.y,dir.z,distance,solidOnly);if(wall)distance=wall.t;
+    const enemy=enemies.rayHit(o,dir,distance);if(enemy)distance=enemy.t;
+    const aim=o.addScaledVector(dir,distance),slot=rocketPool.find(r=>!r.shot);
+    if(slot){slot.shot=launchRocket(P.muzzle,aim.sub(P.muzzle));slot.mesh.visible=true;slot.mesh.position.copy(P.muzzle);}
+    P.pitch+=w.kick;shake(.1);if(st.mag<=0&&P.ammo[w.ammo]>0)startReload();return;
+  }
   let anyHit = false, head = false, killed = false;
   for (let i = 0; i < w.pellets; i++) {
     // 1) raio de mira a partir da câmera
@@ -140,7 +155,7 @@ function fire(enemies) {
     if (what && what.e) {
       const res = what.e.enemy.damage(w.dmg, what.e.part, d); anyHit = true; head = head || what.e.part === 'head'; killed = killed || res;
       sparks(end, what.e.enemy.type === 'DRONE' ? 0x9fe8ff : 0xff5030, 5, 3, 0.3);
-    } else if (what && what.c) { sparks(end, 0xffd9a0, 4, 3, 0.25); G.hooks.onShootCollider(what.c, w.dmg, end); }
+    } else if (what && what.c) { sparks(end, 0xffd9a0, 4, 3, 0.25); if(G.hooks.onShootCollider(what.c, w.dmg, end)>0)anyHit=true; }
   }
   if (anyHit) { G.S.stats.hits++; G.hooks.hitMarker(head, killed); (killed ? sfx.kill : head ? sfx.head : sfx.hit)(); }
   P.pitch += w.kick * (P.ads ? 0.6 : 1); P.bloom = Math.min(0.03, P.bloom + 0.008); shake(P.current === 'martelo9' ? 0.02 : 0.08);
@@ -175,6 +190,21 @@ function startReload() {
 
 export function updatePlayer(dt, enemies) {
   const b = P.body, p = b.pos, v = b.vel, pad = input.pad;
+  for(const r of rocketPool)if(r.shot){
+    const impact=stepRocket(r.shot,dt,enemies);r.mesh.position.copy(r.shot.pos);r.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),r.shot.dir);
+    if(impact){
+      const direct=impact.enemy?.enemy;let confirmed=false,killed=false;
+      if(direct){killed=direct.damage(125,'torso',r.shot.dir);confirmed=true;}
+      if(impact.c)confirmed=G.hooks.onShootCollider(impact.c,125,impact.point)>0||confirmed;
+      const blast=impact.point.clone().addScaledVector(r.shot.dir,-.09);
+      const radial=enemies.explode(blast,ROCKET_RADIUS,125,0,direct);
+      confirmed=confirmed||radial.hits>0;killed=killed||radial.kills>0;
+      const self=rocketSelfDamage(blast.distanceTo(p.clone().setY(p.y+.9)));
+      if(self>0&&lineOfSight(blast.x,blast.y,blast.z,p.x,p.y+.9,p.z))damagePlayer(self,blast);
+      if(confirmed){G.S.stats.hits++;G.hooks.hitMarker?.(false,killed);}
+    }
+    if(r.shot.life<=0){r.shot=null;r.mesh.visible=false;}
+  }
   P.inputLock = Math.max(0, P.inputLock - dt); P.iframe = Math.max(0, P.iframe - dt); P.rollCd = Math.max(0, P.rollCd - dt);
   P.fireCd = Math.max(0, P.fireCd - dt); P.lastFire += dt; P.bloom = Math.max(0, P.bloom - dt * 0.05);
   for (const h of P.hitDirs) h.t -= dt; while (P.hitDirs.length && P.hitDirs[0].t <= 0) P.hitDirs.shift();
@@ -252,8 +282,8 @@ export function updatePlayer(dt, enemies) {
   if (b.grounded && P.speed > 2) { P.stepT -= dt * P.speed; if (P.stepT <= 0) { P.stepT = 2.3; sfx.step(); } }
 
   // ---------- armas ----------
-  if (!P.holster && hit('Digit1')) switchWeapon('martelo9'); if (!P.holster && hit('Digit2')) switchWeapon('trovao_duplo');
-  if (!P.holster && (input.wheel || (pad && (pad.hit.left || pad.hit.right || pad.hit.y)))) switchWeapon(P.current === 'martelo9' ? 'trovao_duplo' : 'martelo9');
+  if (!P.holster && hit('Digit1')) switchWeapon('martelo9'); if (!P.holster && hit('Digit2')) switchWeapon('trovao_duplo'); if (!P.holster && hit('Digit3')) switchWeapon('rompe_casco');
+  if (!P.holster && (input.wheel || (pad && (pad.hit.left || pad.hit.right || pad.hit.y)))) cycleWeapon();
   if (hit('KeyV') || (pad && pad.hit.down)) P.shoulder *= -1;
   if ((hit('KeyF') || (pad && pad.r3)) && !locked && P.meleeCd <= 0 && P.state !== 'ROLLING' && P.state !== 'MANTLING' && !P.holster) melee(enemies);
   if (armed && !P.holster) {

@@ -2,7 +2,7 @@
 export function applyResourcePickup(player, type, amount, limits) {
   if (!Number.isFinite(amount) || amount <= 0) return 0;
   let target, key, cap, value = amount;
-  if (type === 'ammo9' || type === 'shells') {
+  if (type === 'ammo9' || type === 'shells' || type === 'rockets') {
     target = player.ammo; key = type; cap = limits.ammoCaps[type];
     value = Math.max(1, Math.round(amount * limits.res));
   } else if (type === 'medkit' || type === 'armor') {

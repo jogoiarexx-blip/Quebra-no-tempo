@@ -100,7 +100,7 @@ function build(scene){
 let lastSafe=null,hazardCd=0;
 function applyMechanics(X){const{L,S}=X,f=S.flags;X.setDoor('turbine_door',!!(f.valves_closed||f.crane_online),true);L.bridge.mesh.visible=L.bridge.col.enabled=!!f.crane_online;for(let i=0;i<2;i++)L.valves[i].material=f['cooling_'+i]?L.M.neonGreen:L.M.neonAmber;}
 const mission={
- id:'A1-M3',name:'Usina Norte',sectorNames:SECTORS,sectorAt,sealsRequired:2,sealsAvailable:3,requiredFlags:['discharge_stopped'],enemiesTotal:11,secretsTotal:2,next:null,ambientTrack:0,build,
+ id:'A1-M3',name:'Usina Norte',sectorNames:SECTORS,sectorAt,sealsRequired:2,sealsAvailable:3,requiredFlags:['discharge_stopped'],enemiesTotal:11,secretsTotal:2,next:'A1-M4',ambientTrack:0,build,
  newState:()=>({}),outdoor:p=>p.z<74||p.z>118,
  startLoadout:()=>({weapons:{martelo9:{have:true,mag:15},trovao_duplo:{have:true,mag:2}},ammo:{ammo9:60,shells:8},current:'martelo9',holster:false}),
  ecoLocked:()=>false,afterReset(X){X.unlockEco();},
@@ -132,6 +132,6 @@ const mission={
  onGroupDone(X,id){if(id==='eg31')X.S.flags.turbine_defense_cleared=true;if(id==='eg33')X.S.flags.roof_defense_cleared=true;},
  frame(X,dt,t,sim){const{L,S}=X,f=S.flags;for(const rotor of L.rotors)if(!f.turbines_off)rotor.rotation.z+=dt*(sim||!X.playing?3:0);for(let i=0;i<2;i++){const mesh=L.steam[i].mesh,active=steamActive(S,i,S.stats.time),phase=(S.stats.time+i*1.5)%4.8;mesh.visible=!f['cooling_'+i]&&!f.discharge_stopped;mesh.material.color.setHex(active?0xff6945:phase>.8?0xffcf64:0x73d5de);mesh.material.opacity=active?.25:.08;mesh.scale.y=active?1+.12*Math.sin(t*12):.35;}L.hook.position.y+=( (f.crane_online?5:0)-L.hook.position.y)*Math.min(1,dt*1.5);},
  menuCam(t,cam){cam.position.set(14+Math.sin(t*.12)*6,10,60);cam.lookAt(0,5,96);return V(0,5,90);},
- resultsText:X=>`${X.S.pecas} Peças Cronais recolhidas. Backup preservado e descarga interrompida. A1-M4 — Núcleo de Ruptura continua em desenvolvimento.`,
+ resultsText:X=>`${X.S.pecas} Peças Cronais recolhidas. Backup preservado e descarga interrompida. Próxima missão: A1-M4 — Núcleo de Ruptura.`,
 };
 export default mission;
