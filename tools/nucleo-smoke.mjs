@@ -16,6 +16,7 @@ export async function verifyNucleo(page,shot){
  const armor=await fire();assert.equal(armor.before,1080);assert.equal(armor.instant,1080);assert.equal(armor.after,1080);
  await page.evaluate(()=>{QNT.interactables().find(i=>i.text.startsWith('Abrir válvula oeste')).use();QNT.P.pitch=.2;});
  await shot('m4-leviata-nucleo-exposto');
+ const layout=await page.evaluate(()=>({bar:document.getElementById('bossHud').getBoundingClientRect().bottom,notice:document.getElementById('toast').getBoundingClientRect().top}));assert.ok(layout.notice>layout.bar+4,'aviso não deve cobrir barra do chefe');
  const exposed=await fire();assert.equal(exposed.before,1080);assert.equal(exposed.instant,1080);assert.equal(exposed.after,960,'foguete real deve retirar exatamente uma janela de dano');
  const restart=await page.evaluate(()=>{const q=QNT;q.restartCheckpoint();return{hp:q.G.S.boss.hp,mode:q.G.S.boss.mode,seals:q.G.S.seals.length,launcher:q.P.weapons.rompe_casco.have};});
  assert.deepEqual(restart,{hp:1080,mode:'idle',seals:0,launcher:true});

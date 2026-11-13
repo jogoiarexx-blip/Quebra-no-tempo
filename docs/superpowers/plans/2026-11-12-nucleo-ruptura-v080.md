@@ -46,7 +46,7 @@
 **Files:** src/main.js, src/save.js, src/missions/a1m3.js, index.html, package.json, README.md, CHANGELOG.md, docs/QUEBRA_NO_TEMPO_GDD_COMPLETO_v2_2.md, tools/browser-smoke.mjs, .github/workflows/pages.yml.
 - [x] Adicionar RED de migração M3→M4; integrar catálogo, botão Próxima, HUD de chefe, versão 0.8.0 e documentação.
 - [x] Executar suíte completa, review independente e correções importantes cobertas por regressões.
-- [ ] Publicar pelo fluxo existente com testes WebGL antes de deploy e observar resultado/capturas.
+- [x] Publicar pelo fluxo existente com testes WebGL antes de deploy e observar resultado/capturas.
 
 ## Progresso
 Base: 8440a74273db1b782e5561a1cdbda92b3d2949f8. Execução direta na branch feat/nucleo-ruptura-v080, preservando main até publicação validada.
@@ -57,3 +57,5 @@ Task 3: complete — rotas RED→GREEN, ajuste do vão de saída e gabinete da p
 Task 4: migração RED→GREEN, catálogo/HUD/QA, suíte 70/70 (7fc7937); publicação e review aguardando verificação final.
 
 Review final: cinco achados importantes reproduzidos em RED e corrigidos em uma passagem: recuperação de queda, ataques alcançando painel/margens, varredura inclusiva do foguete, dano direto de 125 sem área duplicada, precisão real de combate. Orientação das placas também corrigida para leitura no percurso. Suíte completa: 75/75. Review independente terminou; WebGL/ergonomia física/duração humana não foram avaliados pelo revisor.
+
+Task 4: complete — commit publicado 27d3d9b4d4ae4085ecf404ae23514a46e5290b46, workflow 43355126822 aprovado (75 Node + WebGL das quatro missões, foguete real, três etapas, checkpoints e save transacional); deploy success. Capturas revisadas; ajuste adicional separa aviso/barra e desloca placa para o pilar do portal.

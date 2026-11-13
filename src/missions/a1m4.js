@@ -75,7 +75,7 @@ function build(scene){
  for(let i=0;i<10;i++)B(M.metal,6,10,0,(i+1)*.4,146+i*1.2,147.2+i*1.2);
  B(M.concrete,-12,12,3,4,170,191);L.bridge=D(M.hazard,-4,4,3.8,4,165,170);L.bridge.col.enabled=false;L.bridge.mesh.visible=false;
  for(const s of[-1,1]){B(M.metal,s<0?-12:-0+11.8,s<0?-11.8:12,4,5,170,191,{col:{seeThrough:true}});B(M.metal,s*10-.3,s*10+.3,4,15,178,179);}
- B(M.metal,-10,10,14.5,15.1,178,179);L.interact.portal=V(0,5,174);B(M.metal,-1,1,4,4.9,175,176);sign('ESTABILIZAR RUPTURA',0,6.1,175.9,4.5);
+ B(M.metal,-10,10,14.5,15.1,178,179);L.interact.portal=V(0,5,174);B(M.metal,-1,1,4,4.9,175,176);sign('ESTABILIZAR RUPTURA',-9.8,6.3,177.85,3.8);
  L.reactorRing=L.mesh(new THREE.TorusGeometry(4,.18,6,32),M.neonViolet,0,9,182);L.reactorInner=L.mesh(new THREE.TorusGeometry(3.5,.1,6,32),M.neonCyan,0,9,182.3);L.light(0,9,181,0x9a6dff,38,28);
  L.pts.spawn={x:0,y:.01,z:2,yaw:0};L.pts.gate=V(0,5.3,184);L.pts.gateYaw=0;L.pts.portal=V(0,5,182);
  L.interact.supply=V(-24,5,138);B(M.metal,-27,-25.5,4,5.2,138.8,140);sign('RESERVA DE EMERGENCIA',-25,6.4,139.9,4);

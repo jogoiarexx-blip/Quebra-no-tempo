@@ -327,7 +327,7 @@ function updateHud() {
   const S = G.S, req = mission.sealsRequired; setTxt('objT', mission.objective(X));
   const n = Math.min(S.seals.length, req); setTxt('sealN', `${n}/${req}`);
   if (hudCache.sealDots !== n + '/' + req) { hudCache.sealDots = n + '/' + req; const box = $('sealDots'); box.innerHTML = Array.from({ length: req }, (_, i) => `<i class="${i < n ? 'got' : ''}"></i>`).join(''); }
-  const boss=mission.bossHud?.(X);$('bossHud').style.display=boss?'block':'none';
+  const boss=mission.bossHud?.(X);$('bossHud').style.display=boss?'block':'none';$('hud').classList.toggle('boss-active',!!boss);
   if(boss){setTxt('bossName',boss.name+' • ETAPA '+boss.phase+'/3');setTxt('bossAction',boss.text);$('bossFill').style.width=(100*boss.hp/boss.maxHp)+'%';$('bossFill').style.background=boss.exposed?'#5effb5':'#ff6c49';}
   setTxt('sector', mission.sectorNames[mission.sectorAt(P.body.pos)] || '');
   setTxt('hpN', String(Math.ceil(P.hp))); setTxt('arN', String(Math.ceil(P.armor)));
