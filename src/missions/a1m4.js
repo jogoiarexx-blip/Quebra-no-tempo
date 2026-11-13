@@ -128,7 +128,7 @@ const mission={
  frame(X,dt,t,sim){const{L,S}=X;L.bossView.frame(S.boss,sim?dt:0,t);for(let i=0;i<2;i++){L.valves[i].material=S.boss.mode==='exposed'?L.M.neonGreen:S.boss.valveCooldown[i]>0?L.M.neonAmber:L.M.neonCyan;}L.reactorRing.rotation.z+=sim?dt*.12:0;L.reactorInner.rotation.z-=sim?dt*.18:0;},
  bossHud(X){const b=X.S.boss;if(!b.active)return null;const action=b.mode==='warning'?(b.pattern==='lane'?'METRALHA • SAIA DA PISTA':b.pattern==='drill'?'PERFURACAO • SAIA DA MARCA':'DESCARGA • AFASTE-SE'):b.mode==='exposed'?'NUCLEO EXPOSTO • CONTRA-ATAQUE':b.mode==='transition'?'CIRCUITO ROMPIDO':'BLINDADO • VALVULA OU PROPULSOR';return {name:'LEVIATÃ DE AÇO',hp:b.hp,maxHp:b.maxHp,phase:b.phase,text:action,exposed:b.mode==='exposed'};},
  menuCam(t,cam){cam.position.set(-17+Math.sin(t*.1)*4,8,112);cam.lookAt(0,5,138);return V(0,4,136);},
- resultsText:X=>`Ato I concluído. Leviatã derrotado, gerador neutralizado e primeiro portal estável aberto. ${X.S.pecas} Peças Cronais. Próximo destino do GDD: A2-M1 — Poeira e Pólvora, ainda não implementado.`,
+ resultsText:X=>`Ato I concluído. Leviatã derrotado, gerador neutralizado e primeiro portal estável aberto. ${X.S.pecas} Peças Cronais. Próximo destino do GDD: A2-M1 — Poeira Alta, ainda não implementado.`,
  onComplete(X,campaign){campaign.flags.act1_complete=true;campaign.flags.first_stable_portal=true;},
 };
 export default mission;
