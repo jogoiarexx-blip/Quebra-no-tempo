@@ -1,3 +1,30 @@
+# v0.11.0 — 13/11/2026
+
+- **A2-M4 Forte Meia-Noite** (GDD §7, §8.2, §35, §37) fecha o Ato II: desfiladeiro noturno com dois canhões de muralha (aviso em anel no chão, sabotagem pelas escadas laterais), portão, pátio com Bruto Réptil e dinamiteiros, alojamento com o livro de ponto apagado (segredo), caixa escondida (segredo), salão do Marechal com a Âncora do Oeste, fornalha e a luta.
+- **Marechal Ferrugem** (chefe, 3 fases, 1/1 selo): canhão a vapor (a cobertura protege), pisão e correntes (pule), jatos de vapor em três pontos (entre nas frestas). Blindado: válvulas laterais expõem as juntas por 6 s (teto de 130 por janela). Fase 2: a armadura racha, a arena enche de vapor, as caixas de cobertura estouram e chegam dois pistoleiros nas passarelas. Fase 3: dois acumuladores dourados no peito protegem o motor; destruídos, começa o duelo curto sem blindagem. Reserva limitada no painel (3 usos).
+- Mesa do Marechal: registro da fotografia falsa de Poeira Alta (14 pessoas → 11) com ligação à cópia do museu de Nova Aurora; recompensa de campanha `west_anchor` e `act2_complete`.
+- Trem de Ferro leva ao Forte; saves com A2-M3 concluída liberam A2-M4. Carregamento com arte noturna da fortaleza, cartaz de procurado e carvão como pequenos easter eggs.
+- 100 testes Node (estado puro do chefe e dos canhões, rota física completa, ordem Âncora→painel, três fases, duelo, selo e reentrada) e smoke WebGL das oito missões.
+
+# v0.10.0 — 13/11/2026
+
+- **A2-M3 O Trem de Ferro** (GDD §8, §8.2, §12, §35): tiroteio na Estação Mercúrio, embarque pela varanda traseira, comboio em movimento com o mundo deslizando por baixo (colisão estável), vigas de túnel sobre o teto com aviso (agache ou desça), gôndola de carga temporal (**selo**), vagão postal lacrado acessível pela escotilha do teto (**selo alternativo** + cartas dos apagados), tênder de carvão, reator do século XXIII na cabine (válvula → núcleo, **selo**), travessia da ponte partida com o vagão de passageiros caindo no desfiladeiro e chegada alinhada à Estação Ponte Velha, onde abre a Fenda.
+- **Ferrovia** (GDD §5): rifle de alavanca, 52 de dano, 8 tiros, munição .44 própria (reserva 40), perfuração leve (o tiro atravessa um inimigo e acerta o de trás com 60%). Tecla 4, roda/Y/ARMA no ciclo. Drops de .44 só depois de adquiri-la.
+- Mina Treze leva ao trem; saves com A2-M2 concluída liberam A2-M3. Tela de carregamento com arte do trem, dicas novas e prato do vagão-restaurante.
+- 91 testes Node (rota física completa do trem, vigas, queda, desengate, frenagem alinhada, Ferrovia) e smoke WebGL das sete missões aprovados.
+
+# v0.9.0 — 13/11/2026
+
+- **Abertura do jogo** (GDD §2.3 e §39.3): tela de título "pressione qualquer tecla", prólogo no próprio motor — Nova Aurora na chuva, noticiário falso, Gael na oficina, a Ordem Cronal batendo na porta e o logotipo explodindo. Pula com Esc/Enter/clique/A após 1 s; "Abertura" no menu para rever.
+- **Abertura do Ato II** (fenda → Vale de Mercúrio → chegada de Gael → "ATO II — OURO DE MENTIRA") na primeira partida de A2-M1.
+- **Tela de carregamento** em estilo pôster de ação dos anos 90: arte procedural por missão, título cromado, briefing, progresso real em cinco etapas, dica do Gael e "pressione qualquer tecla para detonar" (garante o gesto que captura o mouse).
+- **A2-M1 Poeira Alta**: saloon com Irene Vidal e defesa, piano de quatro notas com alçapão secreto, cofre atrás do relógio-mestre (código pela Irene OU pelo caderno), estábulos com celeiro (selo alternativo), chapa fotográfica que muda o museu de Nova Aurora em A1-M1, duelo sob o relógio (terceira badalada; atirar antes é desonra) e Fenda na torre.
+- **A2-M2 Mina Treze**: vagões com luz de aviso, perfuratriz A com tanques de pressão, perseguição pela perfuratriz B com abrigo lateral, represa drenada pela comporta, galeria mineral agachada (selo alternativo + 60 peças) e Fenda no elevador.
+- **Novos inimigos**: E04 **Bruto Réptil** (modelo enviado, conceito 03; otimizado 235 mil → 20 mil triângulos, 17,8 → 1,6 MB) com placa frontal e minigun que gira antes de atirar; E05 Prospector com dinamite em arco e anel de aviso; E06 Pistoleiro com brilho do cano. O Bruto também reforça A1-M3 e A1-M4.
+- **Animações revisadas**: velocidade natural medida em cada clipe de caminhada/corrida (pés não patinam), Gael com locomoção lateral/de costas em combate, salto, pouso, golpe, recarga e três mortes; inimigos com reação por lado, morte conforme a direção do tiro, arremesso, saque, rajada de minigun; Irene canta; idle com respiração e olhar. Poses de braço resolvidas no espaço do personagem (funcionam em qualquer esqueleto mixamo).
+- **Fases antigas**: TV com o noticiário falso, Café Paradoxo, outdoor "Premium Ontem", cartaz do museu, vaso inteligente que julga, geladeira do turno, "faz café?" na turbina, máquina de sobrevivência premium; frases de efeito do Gael (Opções).
+- 86 testes Node (rotas físicas de A2-M1/A2-M2, duelo, piano, vagões, perseguição, migração de save, frases); smoke WebGL das seis missões aprovado.
+
 # v0.8.0 — 12/11/2026
 
 - A1-M4 **Núcleo de Ruptura**: avenida destruída, alimentadores do gerador, armaria, duto secreto, registro de memória falsa e plataforma do reator.

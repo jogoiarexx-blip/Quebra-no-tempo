@@ -1,8 +1,8 @@
 {
   "name": "quebra-no-tempo",
-  "version": "0.8.0",
+  "version": "0.11.0",
   "private": true,
-  "description": "QUEBRA NO TEMPO — Ato I completo: quatro missões e Leviatã de Aço (Three.js, GitHub Pages)",
+  "description": "QUEBRA NO TEMPO — Ato I completo + Ato II (Poeira Alta e Mina Treze), abertura e telas de carregamento (Three.js, GitHub Pages)",
   "scripts": {
     "dev": "python3 -m http.server 8080",
     "models": "python3 tools/build_models.py assets_src/principal.glb assets_src/vixen.glb models",

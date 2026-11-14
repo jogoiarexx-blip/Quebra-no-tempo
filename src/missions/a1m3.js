@@ -90,7 +90,7 @@ function build(scene){
  for(const p of pickups)L.pickup('m3_'+p[0],...p.slice(1));
  L.groups={
   eg30:{trigger:p=>p.z>15&&p.z<73,units:[{type:'E01',x:-5,y:0,z:28,role:'flank',path:[[-5,22]]},{type:'E01',x:5,y:0,z:36,role:'hold',path:[[5,33]]},{type:'E02',x:9,y:0,z:41,role:'sniper',alt:[[9,39],[11,41]]}]},
-  eg31:{units:[{type:'E01',x:-4,y:0,z:109,role:'flank',path:[[-4,102],[-2,100]]},{type:'E01',x:5,y:0,z:108,role:'hold',path:[[4,103]]},{type:'E02',x:16,y:4,z:107,role:'sniper',alt:[[16,105],[16,109]]}]},
+  eg31:{units:[{type:'E04',x:0,y:0,z:112,role:'hold',path:[[0,106]]},{type:'E01',x:-4,y:0,z:109,role:'flank',path:[[-4,102],[-2,100]]},{type:'E01',x:5,y:0,z:108,role:'hold',path:[[4,103]]},{type:'E02',x:16,y:4,z:107,role:'sniper',alt:[[16,105],[16,109]]}]},
   eg32:{trigger:p=>p.z>136&&p.z<160,units:[{type:'E01',x:-7,y:4,z:151,role:'flank',path:[[-7,143]]},{type:'E01',x:7,y:4,z:154,role:'hold',path:[[7,150]]}]},
   eg33:{trigger:p=>p.z>174&&p.y>7,units:[{type:'E01',x:-7,y:8,z:184,role:'flank',path:[[-7,179]]},{type:'E01',x:7,y:8,z:181,role:'hold',path:[[7,178]]},{type:'E02',x:14,y:8,z:189,role:'sniper',alt:[[14,187],[14,190]]}]}
  };
@@ -100,7 +100,7 @@ function build(scene){
 let lastSafe=null,hazardCd=0;
 function applyMechanics(X){const{L,S}=X,f=S.flags;X.setDoor('turbine_door',!!(f.valves_closed||f.crane_online),true);L.bridge.mesh.visible=L.bridge.col.enabled=!!f.crane_online;for(let i=0;i<2;i++)L.valves[i].material=f['cooling_'+i]?L.M.neonGreen:L.M.neonAmber;}
 const mission={
- id:'A1-M3',name:'Usina Norte',sectorNames:SECTORS,sectorAt,sealsRequired:2,sealsAvailable:3,requiredFlags:['discharge_stopped'],enemiesTotal:11,secretsTotal:2,next:'A1-M4',ambientTrack:0,build,
+ id:'A1-M3',name:'Usina Norte',sectorNames:SECTORS,sectorAt,sealsRequired:2,sealsAvailable:3,requiredFlags:['discharge_stopped'],enemiesTotal:12,secretsTotal:2,next:'A1-M4',ambientTrack:0,build,
  newState:()=>({}),outdoor:p=>p.z<74||p.z>118,
  startLoadout:()=>({weapons:{martelo9:{have:true,mag:15},trovao_duplo:{have:true,mag:2}},ammo:{ammo9:60,shells:8},current:'martelo9',holster:false}),
  ecoLocked:()=>false,afterReset(X){X.unlockEco();},

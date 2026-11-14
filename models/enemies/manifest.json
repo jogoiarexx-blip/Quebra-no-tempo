@@ -1,5 +1,6 @@
 {
-  "_comentario": "E01 usa o reptiliano otimizado; E02 usa o porco policial otimizado.",
+  "_comentario": "E01 usa o reptiliano otimizado; E02 usa o porco/javali policial otimizado; E04 (Bruto Réptil com minigun, conceito 03) usa o modelo Boar Enforcer enviado, otimizado para 20 mil triângulos e texturas WebP 1024.",
   "E01": "reptiliano.glb",
-  "E02": "porco-policial.glb"
+  "E02": "porco-policial.glb",
+  "E04": "bruto-reptil.glb"
 }

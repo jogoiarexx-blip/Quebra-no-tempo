@@ -1,4 +1,5 @@
-// Inimigos do slice: E01 Saqueador Cronal, E02 Atirador de Telhado e drone de treino.
+// Inimigos: E01 Saqueador Cronal, E02 Atirador de Telhado, drone, E05 Prospector Corrompido (dinamite) e
+// E06 Pistoleiro de Mercúrio (saque marcado) do Ato II.
 // Regras do GDD: telegraph antes de atirar, nunca atirar sem linha de visão, não ficar preso à cobertura.
 import * as THREE from 'three';
 import { G, diff } from './state.js';
@@ -13,8 +14,16 @@ const STATS = {
   E01: { hp: 65, dmg: 6, burst: 3, tele: 0.5, cd: [1.8, 2.8], boltSpeed: 34, spread: 0.05, speed: 4.3 },
   E02: { hp: 50, dmg: 24, burst: 1, tele: 1.15, cd: [2.0, 2.6], boltSpeed: 120, spread: 0.004, speed: 2.4 },
   DRONE: { hp: 45, dmg: 7, burst: 2, tele: 0.6, cd: [1.6, 2.4], boltSpeed: 28, spread: 0.03, speed: 5 },
+  // GDD §6.1: dinamite com pavio visível e recuo do próprio explosivo; pistoleiro com brilho do cano antes do tiro marcado
+  E05: { hp: 75, dmg: 5, burst: 2, tele: 0.55, cd: [2.2, 3.2], boltSpeed: 32, spread: 0.06, speed: 3.6, throwCd: [4.2, 6.0], fuse: 1.7, blast: 3.4, blastDmg: 34 },
+  // E04 Bruto Réptil (arquétipo Guarda Blindado do GDD, conceito 03): placa frontal e minigun que precisa girar antes
+  // de disparar (aviso sonoro + cano brilhando); costas, pernas e explosões são o ponto fraco
+  E04: { hp: 135, dmg: 4, burst: 10, burstGap: 0.085, tele: 0.95, cd: [2.4, 3.2], boltSpeed: 46, spread: 0.055, speed: 3.0, range: 30 },
+  E06: { hp: 80, dmg: 20, burst: 1, tele: 0.85, cd: [1.6, 2.3], boltSpeed: 95, spread: 0.008, speed: 3.9 },
 };
-const pool = { E01: [], E02: [], DRONE: [] };
+const pool = { E01: [], E02: [], DRONE: [], E04: [], E05: [], E06: [] };
+export const ENEMY_TYPES = Object.keys(STATS);
+const dynamite = [];
 const bolts = [];
 const spawnQueue = [];
 function flushSpawns(){for(let i=0;i<spawnQueue.length;){const q=spawnQueue[i],arr=pool[q.unit.type];const e=arr.find(x=>!x.active)||arr.filter(x=>!x.alive).sort((a,b)=>b.deadT-a.deadT)[0];if(!e){i++;continue;}e.deactivate();e.spawn(q.unit,q.group);spawnQueue.splice(i,1);}}
@@ -29,10 +38,31 @@ function makeDrone() {
   return { root: g, eye, ring };
 }
 
+// minigun de mão do Bruto Réptil: seis canos que giram ao preparar e disparar
+function makeMinigun() {
+  const g = new THREE.Group(), dark = new THREE.MeshLambertMaterial({ color: 0x24262b }), hot = new THREE.MeshBasicMaterial({ color: 0x3a2a20 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.18, 0.4), dark); body.position.z = 0.12; g.add(body);
+  const barrels = new THREE.Group(); barrels.position.z = 0.45; g.add(barrels);
+  for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, b = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.55, 6), dark); b.rotation.x = Math.PI / 2; b.position.set(Math.cos(a) * 0.05, Math.sin(a) * 0.05, 0.1); barrels.add(b); }
+  const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.04, 10), hot); tip.rotation.x = Math.PI / 2; tip.position.z = 0.38; barrels.add(tip);
+  g.userData.barrels = barrels; g.userData.tip = tip; return g;
+}
 export function createEnemyPools(sc) {
   scene = sc;
   for (let i = 0; i < 4; i++) pool.E01.push(new Enemy('E01'));
   pool.E02.push(new Enemy('E02')); pool.DRONE.push(new Enemy('DRONE'));
+  for (let i = 0; i < 3; i++) { pool.E05.push(new Enemy('E05')); pool.E06.push(new Enemy('E06')); }
+  for (let i = 0; i < 2; i++) pool.E04.push(new Enemy('E04'));
+  const stick = new THREE.MeshLambertMaterial({ color: 0xb8241c }), wrap = new THREE.MeshLambertMaterial({ color: 0xe8d9b0 });
+  for (let i = 0; i < 6; i++) {
+    const g = new THREE.Group();
+    for (const dx of [-0.05, 0.05]) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.34, 8), stick); m.position.x = dx; m.rotation.z = Math.PI / 2; m.rotation.y = Math.PI / 2; g.add(m); }
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.06), wrap); g.add(band);
+    const spark = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffd060 })); spark.position.set(0, 0.06, 0.2); g.add(spark);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 28), new THREE.MeshBasicMaterial({ color: 0xff3a20, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.visible = false; scene.add(ring);
+    g.visible = false; scene.add(g);
+    dynamite.push({ g, spark, ring, pos: new THREE.Vector3(), vel: new THREE.Vector3(), fuse: 0, alive: false, owner: null, grounded: false });
+  }
   for (let i = 0; i < 28; i++) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.7), new THREE.MeshBasicMaterial({ color: 0xff5a30 })); m.visible = false; scene.add(m);
     bolts.push({ m, alive: false, pos: new THREE.Vector3(), vel: new THREE.Vector3(), dmg: 0, life: 0 });
@@ -46,10 +76,13 @@ class Enemy {
     this.body = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), hw: 0.36, h: 1.8, grounded: true };
     if (type === 'DRONE') { this.drone = makeDrone(); this.root = this.drone.root; }
     else {
-      this.actor = assets[type] ? new Actor(type, { scale: 1.8 / 1.7 })     // GLB próprio do inimigo (manifest.json)
+      const western = type === 'E05' || type === 'E06' || (type === 'E04' && !assets.E04), base = assets.gael ? 'gael' : 'E01';
+      this.actor = western ? new Actor(base, base === 'gael' ? { scale: type === 'E05' ? 1.04 : type === 'E04' ? 1.12 : 1.0, outfit: type === 'E06' ? 'pistoleiro' : 'prospector', hat: type === 'E06' ? 0x17130f : 0x6a4a2a, armor: type === 'E04' ? 0x5a5f68 : undefined } : { scale: 1.8 / 1.7 })
+        : type === 'E04' ? new Actor('E04', { scale: 1.95 / 1.7 })     // Bruto Réptil é mais alto e largo
+        : assets[type] ? new Actor(type, { scale: 1.8 / 1.7 })     // GLB próprio do inimigo (manifest.json)
         : new Actor('gael', { scale: type === 'E02' ? 1.0 : 1.03, outfit: type === 'E02' ? 'sniper' : 'merc', helmet: type === 'E02' ? 0xff2030 : 0xffb030, armor: type === 'E02' ? 0x4a3a66 : 0x3a4250 });
       this.root = this.actor.root;
-      const gm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, type === 'E02' ? 0.9 : 0.5).translate(0, 0, type === 'E02' ? 0.35 : 0.2), new THREE.MeshLambertMaterial({ color: 0x15171b }));
+      const gm = type === 'E04' ? makeMinigun() : new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, type === 'E02' ? 0.9 : type === 'E06' ? 0.34 : 0.5).translate(0, 0, type === 'E02' ? 0.35 : 0.2), new THREE.MeshLambertMaterial({ color: type === 'E06' ? 0x8a8f96 : 0x15171b }));
       this.gun = gm; scene.add(gm); gm.visible = false;
     }
     this.root.visible = false; scene.add(this.root); this.active = false; this.alive = false;
@@ -57,7 +90,7 @@ class Enemy {
   spawn(def, group) {
     Object.assign(this, { active: true, alive: true, group, role: def.role, hp: this.st.hp * diff().hp, state: 'move', path: (def.path || []).map((q) => ({ x: q[0], z: q[1] })), pathI: 0,
       cd: 0.6 + Math.random() * 0.6, tele: 0, burstLeft: 0, burstT: 0, first: !!def.first, losT: 0, los: false, noLos: 0, lostT: 0, poise: 0, poiseT: 0, stagger: 0, hitReactT: 0, attackT: 0, limp: 0, deadT: 0, stuck: 0, side: 0, sideT: 0,
-      shots: 0, strafeT: 3 + Math.random() * 3, facing: Math.PI, spawnT: def.portal ? 0.9 : 0, home: { x: def.x, z: def.z }, aimDir: new THREE.Vector3(), t: Math.random() * 10, knock: null, alt: def.alt || null, spawnY: def.y });
+      shots: 0, throwT: this.st.throwCd ? 1.5 + Math.random() * 1.5 : 0, retreatT: 0, throwAnim: false, deathClip: null, hitClip: null, strafeT: 3 + Math.random() * 3, facing: Math.PI, spawnT: def.portal ? 0.9 : 0, home: { x: def.x, z: def.z }, aimDir: new THREE.Vector3(), t: Math.random() * 10, knock: null, alt: def.alt || null, spawnY: def.y });
     this.body.pos.set(def.x, def.y, def.z); this.body.vel.set(0, 0, 0); this.body.grounded = true;
     this.root.visible = true; this.root.position.copy(this.body.pos);
     if (this.actor) { this.actor.play('Idle', 0); this.actor.model.rotation.set(0, 0, 0); this.actor.model.position.y = 0; this.gun.visible = true; this.actor.aimTarget = 0; }
@@ -68,19 +101,25 @@ class Enemy {
   targetPos(out) { const d = P.eco.decoy; if (d) return out.copy(d.pos).setY(d.pos.y + 1.1); return out.copy(P.body.pos).setY(P.body.pos.y + 1.1); }
   damage(amount, part, dir) {
     if (!this.alive) return false;
-    const mult = this.type === 'DRONE' ? 1 : part === 'head' ? 1.8 : part === 'leg' ? 0.75 : 1;
+    let mult = this.type === 'DRONE' ? 1 : part === 'head' ? 1.8 : part === 'leg' ? 0.75 : 1;
+    if (this.type === 'E04') {
+      // placa frontal: tiro de frente no tronco ricocheteia; costas e pernas pagam mais; explosão sempre funciona
+      const front = part === 'torso' && dir && (dir.x * Math.sin(this.facing) + dir.z * Math.cos(this.facing)) < -0.35;
+      mult = part === 'blast' ? 1.25 : part === 'head' ? 1.3 : part === 'leg' ? 1.1 : front ? 0.3 : 1.5;
+      if (front) { sparks(_a.set(this.body.pos.x, this.body.pos.y + 1.2, this.body.pos.z), 0xe8f0ff, 5, 3, 0.2); sfx.clang(); }
+    }
     const dmg = amount * mult; this.hp -= dmg; this.poise += dmg; this.poiseT = 1.5;
-    if (part === 'leg' && this.type === 'E01') this.limp = 2.5;
-    if ((this.poise >= 40 || part === 'head') && this.type !== 'DRONE' && this.stagger <= 0) { this.stagger = 0.45; this.poise = 0; this.state = 'combat'; this.tele = 0; this.burstLeft = 0; this.cd = Math.max(this.cd, 0.7); }
+    if (part === 'leg' && (this.type === 'E01' || this.type === 'E04' || this.type === 'E05' || this.type === 'E06')) this.limp = 2.5;
+    if ((this.poise >= (this.type === 'E04' ? 75 : 40) || (part === 'head' && this.type !== 'E04')) && this.type !== 'DRONE' && this.stagger <= 0) { this.stagger = 0.45; this.poise = 0; this.state = 'combat'; this.tele = 0; this.burstLeft = 0; this.cd = Math.max(this.cd, 0.7); }
     this.noLos = 0; this.alerted = true;
-    if(this.actor && this.hp>0){this.hitReactT=.38;this.actor.play('HitReaction',.06,1,{once:true,restart:true});}
+    if(this.actor && this.hp>0){const side=dir?dir.x*Math.cos(this.facing)-dir.z*Math.sin(this.facing):0,front=dir?dir.x*Math.sin(this.facing)+dir.z*Math.cos(this.facing):-1;this.hitClip=front<-.5||!dir?'HitReaction':side>0?'HitRight':'HitLeft';this.hitReactT=.38;this.actor.play(this.hitClip,.06,1,{once:true,restart:true});}
     if (this.hp <= 0) { this.die(dir); return true; }
     return false;
   }
   die(dir) {
     this.alive = false; this.deadT = 0; this.state = 'dead'; G.S.stats.kills++;
     if (this.type === 'DRONE') { sparks(this.body.pos, 0x9fe8ff, 30, 6, 0.7); flash(this.body.pos, 1.2, 0.25, 0xff3ad0); sfx.explosion(); }
-    if (this.actor) { this.actor.aimTarget = 0; this.actor.aimW = 0; this.actor.play('Death',.1,1,{once:true,restart:true}); }
+    if (this.actor) { const fwd = dir ? dir.x * Math.sin(this.facing) + dir.z * Math.cos(this.facing) : -1; this.deathClip = fwd > .35 ? 'DeathFront' : Math.random() < .3 ? 'DeathSpin' : 'Death'; this.actor.aimTarget = 0; this.actor.aimW = 0; this.actor.play(this.deathClip,.1,1,{once:true,restart:true}); }
     this.fallYaw = dir ? Math.atan2(dir.x, dir.z) : this.facing;
     G.hooks.onEnemyKilled(this);
   }
@@ -91,7 +130,7 @@ class Enemy {
       this.deadT += dt;
       if (this.type === 'DRONE') { b.vel.y -= GRAV * dt; p.y = Math.max(p.y + b.vel.y * dt, 0.3); this.root.position.copy(p); this.root.rotation.z += dt * 6; if (this.deadT > 2) this.deactivate(); return; }
       b.vel.x = b.vel.z = 0; b.vel.y -= GRAV * dt; moveBody(b, dt);
-      this.actor.play('Death',.1,1,{once:true}); this.root.position.copy(p); this.actor.model.rotation.x = 0; this.actor.model.position.y = 0;
+      this.actor.play(this.deathClip || 'Death',.1,1,{once:true}); this.root.position.copy(p); this.actor.model.rotation.x = 0; this.actor.model.position.y = 0;
       this.gun.visible = false;
       if (this.deadT > 5) { this.root.position.y -= (this.deadT - 5) * 0.5; if (this.deadT > 6.5) this.deactivate(); }
       return;
@@ -122,11 +161,29 @@ class Enemy {
       // ----- combate -----
       if (this.state === 'combat' || (this.state === 'move' && this.los && dist < 14) || this.state === 'advance') {
         this.cd -= dt;
-        if (this.cd <= 0 && this.los && dist < 55) { this.prevState = this.state === 'combat' ? 'combat' : this.state; this.state = 'aim'; this.tele = (this.first ? 0.5 : st.tele) + (G.settings.difficulty === 'turista' ? 0.2 : 0); this.first = false; if (this.type === 'E02') sfx.charge(); }
+        if (this.cd <= 0 && this.los && dist < (st.range || 55)) { this.prevState = this.state === 'combat' ? 'combat' : this.state; this.state = 'aim'; this.tele = (this.first ? 0.5 : st.tele) + (G.settings.difficulty === 'turista' ? 0.2 : 0); this.first = false; if (this.type === 'E02') sfx.charge(); if (this.type === 'E06') { sfx.cock(); this.glint = 1; } if (this.type === 'E04') sfx.spinup(); }
+      // E04 avança sem pressa até a distância de supressão
+      if (this.type === 'E04' && this.state === 'combat' && dist > 14 && this.los) { const gl = Math.max(1, dist); const gx = p.x + dx / gl * Math.min(4, dist - 10), gz = p.z + dz / gl * Math.min(4, dist - 10); if (!boxFree(gx, p.y + 0.5, gz, b.hw, b.h - 0.5)) { this.advGoal = { x: gx, z: gz }; this.state = 'advance'; } }
+      }
+      // E05: acende o pavio (telegraph na mão), arremessa em arco e recua do próprio explosivo
+      if (this.type === 'E05' && this.state !== 'aim' && this.state !== 'fire' && this.state !== 'throw') {
+        this.throwT -= dt;
+        if (this.throwT <= 0 && this.los && dist > 4 && dist < 22) { this.state = 'throw'; this.tele = 0.8; sfx.fuse(); }
+      }
+      if (this.state === 'throw') {
+        mvx = mvz = 0; this.tele -= dt;
+        if (this.tele <= .34 && !this.throwAnim) { this.throwAnim = true; this.actor.play('Throw', .05, 1, { once: true, restart: true }); }
+        if (this.tele <= 0) {
+          this.muzzle(_a); throwDynamite(this, _a, tp); this.throwAnim = false;
+          this.attackT = .45;
+          this.throwT = st.throwCd[0] + Math.random() * (st.throwCd[1] - st.throwCd[0]); this.retreatT = 1.4; this.state = 'combat';
+          const gl = Math.max(1, dist); this.advGoal = { x: p.x - dx / gl * 4, z: p.z - dz / gl * 4 };
+          if (!boxFree(this.advGoal.x, p.y + 0.5, this.advGoal.z, b.hw, b.h - 0.5)) this.state = 'advance';
+        }
       }
       if (this.state === 'combat') {
         // não fica eternamente preso à cobertura: sem visão por 3 s, avança para um ponto com visão
-        if (this.noLos > 3 && this.type === 'E01' && this.alerted !== false) {
+        if (this.noLos > 3 && (this.type === 'E01' || this.type === 'E04' || this.type === 'E05' || this.type === 'E06') && this.alerted !== false) {
           const gl = Math.max(1, dist), step = Math.min(5, Math.max(0, dist - 5));
           const gx = p.x + dx / gl * step, gz = p.z + dz / gl * step;
           if (step > 0.5 && !boxFree(gx, p.y + 0.5, gz, b.hw, b.h - 0.5)) { this.advGoal = { x: gx, z: gz }; this.state = 'advance'; this.noLos = 1.2; }
@@ -146,14 +203,15 @@ class Enemy {
         const lockT = this.type === 'E02' ? 0.28 : 0.12;
         if (this.tele > lockT || this.aimDir.lengthSq() === 0) { _d.set(tp.x + P.body.vel.x * 0.1 - ex, tp.y - ey + 0.1, tp.z + P.body.vel.z * 0.1 - ez).normalize(); this.aimDir.copy(_d); }
         if (this.visor) this.visor.scale.y = 1 + 2.5 * Math.abs(Math.sin(this.t * 22));
+        if (this.type === 'E06' && this.tele < 0.45 && this.glint) { this.glint = 0; this.muzzle(_b); flash(_b, 0.35, 0.18, 0xfff2c0); }
         if (!this.los && this.tele > lockT) { this.state = this.prevState || 'combat'; this.cd = 0.5; }          // perdeu visão: cancela
         else if (this.tele <= 0) { this.state = 'fire'; this.burstLeft = st.burst; this.burstT = 0; }
       } else if (this.visor) this.visor.scale.y = 1;
       if (this.state === 'fire') {
         mvx = mvz = 0; this.burstT -= dt;
         if (this.burstT <= 0) {
-          this.muzzle(_a); spawnBolt(_a, this.aimDir, st, this.type); this.attackT=.24;this.actor.play('Attack',.04,1,{once:true,restart:true});this.burstLeft--; this.burstT = 0.16; this.shots++;
-          if (this.type === 'E01') { _d.set(tp.x + P.body.vel.x * 0.1 - _a.x, tp.y - _a.y, tp.z + P.body.vel.z * 0.1 - _a.z).normalize(); this.aimDir.lerp(_d, 0.5).normalize(); }
+          this.muzzle(_a); for (let k = 0; k < (st.pellets || 1); k++) spawnBolt(_a, this.aimDir, st, this.type, k > 0); this.attackT=this.type==='E04'?.12:.24;this.actor.play(this.type==='E04'?'Minigun':this.type==='E06'?'Draw':'Attack',.04,1,{once:this.type!=='E04',restart:this.type!=='E04'});this.burstLeft--; this.burstT = st.burstGap || 0.16; this.shots++;
+          if (this.type === 'E01' || this.type === 'E05' || this.type === 'E04') { _d.set(tp.x + P.body.vel.x * 0.1 - _a.x, tp.y - _a.y, tp.z + P.body.vel.z * 0.1 - _a.z).normalize(); this.aimDir.lerp(_d, 0.5).normalize(); }
           if (this.burstLeft <= 0) { this.state = this.prevState === 'move' ? 'move' : 'combat'; this.cd = st.cd[0] + Math.random() * (st.cd[1] - st.cd[0]); this.aimDir.set(0, 0, 0); }
         }
       }
@@ -168,13 +226,14 @@ class Enemy {
       let df = wantFace - this.facing; df = Math.atan2(Math.sin(df), Math.cos(df)); this.facing += df * Math.min(1, dt * 10);
       this.root.position.copy(p); this.root.rotation.y = this.facing;
       const moving = Math.hypot(b.vel.x, b.vel.z) > 0.4;
-      if (this.hitReactT>0 || this.stagger>0) this.actor.play('HitReaction',.08,1,{once:true});
-      else if (this.attackT>0) this.actor.play('Attack',.04,1,{once:true});
+      if (this.hitReactT>0 || this.stagger>0) this.actor.play(this.hitClip || 'HitReaction',.08,1,{once:true});
+      else if (this.state === 'throw' && this.throwAnim) this.actor.play('Throw',.05,1,{once:true});
+      else if (this.attackT>0) this.actor.play(this.type==='E04'?'Minigun':this.type==='E06'?'Draw':this.type==='E05'&&this.attackT>.25?'Throw':'Attack',.04,1,{once:this.type!=='E04'});
       else if (moving) {
         const fwd=(b.vel.x*Math.sin(this.facing)+b.vel.z*Math.cos(this.facing))/speed;
         const side=(b.vel.x*Math.cos(this.facing)-b.vel.z*Math.sin(this.facing))/speed;
         const name=fwd<-.45?'WalkBackward':Math.abs(side)>.7&&Math.abs(fwd)<.45?(side<0?'StrafeLeft':'StrafeRight'):speed>3?'Running':'Walking';
-        this.actor.play(name,.15,speed>3?speed/5.6:speed/1.9);
+        const g=this.actor.gait;this.actor.play(name,.15,name==='Running'?Math.hypot(b.vel.x,b.vel.z)/g.run:Math.max(.5,Math.hypot(b.vel.x,b.vel.z)/g.walk));
       } else this.actor.play('RelaxedIdle',.2);
       const aiming = this.state === 'aim' || this.state === 'fire' || (this.los && !moving);
       this.actor.aimTarget = this.hitReactT>0||this.stagger>0?0:this.attackT>0?.45:aiming?1:0; this.actor.pitch = Math.atan2(tp.y - ey, Math.max(1, dist));
@@ -198,18 +257,47 @@ class Enemy {
   frame(dt) {   // por quadro de render: animação e arma na mão
     if (!this.active || !this.actor) return;
     this.actor.update(dt);
+    if (this.type === 'E04' && this.gun.userData.barrels) { const firing = this.state === 'aim' || this.state === 'fire'; this.spin = (this.spin || 0) + dt * (firing ? 28 : 2); this.gun.userData.barrels.rotation.z = this.spin; this.gun.userData.tip.material.color.setHex(this.state === 'fire' ? 0xffb040 : this.state === 'aim' ? 0xc0501a : 0x3a2a20); }
     if (this.gun.visible) { this.actor.handPos(_a); this.gun.position.copy(_a); const d = this.aimDir.lengthSq() > 0 ? this.aimDir : _b.set(Math.sin(this.facing), this.actor.aimW > 0.5 ? this.actor.pitch : -1.2, Math.cos(this.facing)).normalize(); this.gun.lookAt(_a.add(d)); }
   }
   deactivate() { this.active = false; this.root.visible = false; if (this.gun) this.gun.visible = false; }
 }
 
-function spawnBolt(from, dir, st, type) {
+function spawnBolt(from, dir, st, type, quiet) {
   const b = bolts.find((x) => !x.alive); if (!b) return;
   b.alive = true; b.pos.copy(from); b.life = 3; b.dmg = st.dmg; b.type = type;
   const a = Math.random() * 6.283, r = Math.random() * st.spread;
   b.vel.copy(dir); b.vel.x += Math.cos(a) * r; b.vel.y += Math.sin(a) * r * 0.6; b.vel.z += Math.sin(a) * r; b.vel.normalize().multiplyScalar(st.boltSpeed);
-  b.m.material.color.set(type === 'E02' ? 0xff2030 : type === 'DRONE' ? 0xff3ad0 : 0xffa030); b.m.visible = true; b.m.scale.z = type === 'E02' ? 3 : 1;
-  (type === 'E02' ? sfx.sniper : sfx.enemyShot)(); flash(from, 0.2, 0.05, 0xff8040);
+  b.m.material.color.set(type === 'E02' ? 0xff2030 : type === 'DRONE' ? 0xff3ad0 : type === 'E06' ? 0xfff0b0 : 0xffa030); b.m.visible = true; b.m.scale.z = type === 'E02' ? 3 : type === 'E06' ? 2 : 1;
+  if (quiet) return;
+  (type === 'E02' ? sfx.sniper : type === 'E06' || type === 'E05' ? sfx.revolver : type === 'E04' ? sfx.minigun : sfx.enemyShot)(); flash(from, type === 'E04' ? 0.3 : 0.2, 0.05, 0xff8040);
+}
+// Dinamite em arco balístico: pousa, quica pouco e explode quando o pavio acaba. O anel no chão mostra o raio.
+function throwDynamite(owner, from, target) {
+  const d = dynamite.find((x) => !x.alive); if (!d) return;
+  const st = owner.st, tx = target.x + (Math.random() - 0.5) * 1.6, tz = target.z + (Math.random() - 0.5) * 1.6;
+  const flight = Math.min(1.25, 0.55 + Math.hypot(tx - from.x, tz - from.z) / 18);
+  d.alive = true; d.owner = owner; d.fuse = st.fuse + flight; d.grounded = false; d.pos.copy(from);
+  d.vel.set((tx - from.x) / flight, ((target.y - 1.1 + 0.15) - from.y + 0.5 * GRAV * flight * flight) / flight, (tz - from.z) / flight);
+  d.g.visible = true; d.ring.visible = false; d.blast = st.blast; d.dmg = st.blastDmg; sfx.whoosh();
+}
+function updateDynamite(dt) {
+  for (const d of dynamite) {
+    if (!d.alive) continue;
+    d.fuse -= dt;
+    if (!d.grounded) {
+      d.vel.y -= GRAV * dt; const step = d.vel.length() * dt; _d.copy(d.vel).normalize();
+      const hc = raycast(d.pos.x, d.pos.y, d.pos.z, _d.x, _d.y, _d.z, step + 0.08, solidOnly);
+      if (hc) { d.pos.addScaledVector(_d, Math.max(0, hc.t - 0.08)); if (d.vel.y < 0 && _d.y < -0.3) { d.grounded = true; d.vel.set(0, 0, 0); d.pos.y += 0.06; } else { d.vel.multiplyScalar(-0.25); d.vel.y = Math.min(d.vel.y, 0); } }
+      else d.pos.addScaledVector(d.vel, dt);
+      d.g.rotation.x += dt * 9; d.g.rotation.y += dt * 4;
+    }
+    if (d.pos.y < -30) { d.alive = false; d.g.visible = false; d.ring.visible = false; continue; }
+    d.g.position.copy(d.pos); d.spark.scale.setScalar(0.7 + Math.random() * 0.9);
+    if (Math.random() < 0.5) sparks(_a.copy(d.pos).setY(d.pos.y + 0.08), 0xffc040, 1, 1.2, 0.25);
+    if (d.grounded) { d.ring.visible = true; d.ring.position.set(d.pos.x, d.pos.y - 0.04, d.pos.z); d.ring.scale.setScalar(d.blast); d.ring.material.opacity = 0.25 + 0.4 * Math.abs(Math.sin(d.fuse * (d.fuse < 0.6 ? 22 : 9))); }
+    if (d.fuse <= 0) { d.alive = false; d.g.visible = false; d.ring.visible = false; enemies.explode(d.pos.clone(), d.blast, 70, d.dmg); }
+  }
 }
 function segBox(o, d, len, min, max) {   // segmento contra AABB
   let t0 = 0, t1 = len;
@@ -223,7 +311,8 @@ function segBox(o, d, len, min, max) {   // segmento contra AABB
 }
 
 export const enemies = {
-  get list() { return [...pool.E01, ...pool.E02, ...pool.DRONE]; },
+  get list() { return [...pool.E01, ...pool.E02, ...pool.DRONE, ...pool.E04, ...pool.E05, ...pool.E06]; },
+  get dynamite() { return dynamite; },
   all: null,
   spawnGroup(id, def) {
     for(const unit of def.units)spawnQueue.push({unit,group:id});
@@ -231,10 +320,11 @@ export const enemies = {
   },
   aliveInGroup(id) { return this.all.filter(e=>e.active&&e.alive&&e.group===id).length+spawnQueue.filter(q=>q.group===id).length; },
   activeAlive() { return this.all.filter((e) => e.active && e.alive).length; },
-  clear() { spawnQueue.length=0; for (const e of this.all) e.deactivate(); for (const b of bolts) { b.alive = false; b.m.visible = false; } laser.visible = false; },
+  clear() { spawnQueue.length=0; for (const e of this.all) e.deactivate(); for (const b of bolts) { b.alive = false; b.m.visible = false; } for (const d of dynamite) { d.alive = false; d.g.visible = false; d.ring.visible = false; } laser.visible = false; },
   update(dt) {
     flushSpawns();
     for (const e of this.all) e.update(dt);
+    updateDynamite(dt);
     // projéteis
     const pb = P.body, pmin = [pb.pos.x - 0.33, pb.pos.y + (P.state === 'ROLLING' ? 0 : 0.05), pb.pos.z - 0.33], pmax = [pb.pos.x + 0.33, pb.pos.y + (P.state === 'ROLLING' ? 1.0 : 1.78), pb.pos.z + 0.33];
     for (const b of bolts) {
@@ -278,10 +368,10 @@ export const enemies = {
   },
   explode(pos, radius, dmg, selfDamage = 40, exclude = null) {
     let hits=0,kills=0;
-    for (const e of this.all) { if (!e.active || !e.alive || e === exclude) continue; const d = e.body.pos.distanceTo(pos); if (d < radius && lineOfSight(pos.x, pos.y + 0.3, pos.z, e.body.pos.x, e.body.pos.y + 1, e.body.pos.z)) { hits++;if(e.damage(dmg * (1 - d / radius * 0.6), 'torso', _d.copy(e.body.pos).sub(pos).normalize()))kills++; e.stagger = Math.max(e.stagger, 0.9); } }
+    for (const e of this.all) { if (!e.active || !e.alive || e === exclude) continue; const d = e.body.pos.distanceTo(pos); if (d < radius && lineOfSight(pos.x, pos.y + 0.3, pos.z, e.body.pos.x, e.body.pos.y + 1, e.body.pos.z)) { hits++;if(e.damage(dmg * (1 - d / radius * 0.6), 'blast', _d.copy(e.body.pos).sub(pos).normalize()))kills++; e.stagger = Math.max(e.stagger, 0.9); } }
     const dp = P.body.pos.distanceTo(pos); if (selfDamage > 0 && dp < radius) damagePlayer(selfDamage * (1 - dp / radius), pos);
     sparks(pos, 0xffa030, 60, 9, 0.8); flash(pos, radius * 0.8, 0.35, 0xffb040); sfx.explosion(); shake(0.5 * Math.max(0, 1 - dp / 25));
     return {hits,kills};
   },
 };
-export function initEnemyList() { enemies.all = [...pool.E01, ...pool.E02, ...pool.DRONE]; }
+export function initEnemyList() { enemies.all = [...pool.E01, ...pool.E02, ...pool.DRONE, ...pool.E04, ...pool.E05, ...pool.E06]; }

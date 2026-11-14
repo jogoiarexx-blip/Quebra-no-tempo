@@ -10,7 +10,7 @@ const _v = new THREE.Vector3();
 export class NPC {
   constructor(parent, o) {
     this.o = o; this.name = o.name || '';
-    this.actor = new Actor(o.asset || 'gael', { scale: o.scale || (o.asset === 'sol' ? 1 : 1.02), outfit: o.outfit, ledMask: o.ledMask, helmet: o.helmet });
+    this.actor = new Actor(o.asset || 'gael', { scale: o.scale || (o.asset === 'sol' ? 1 : 1.02), outfit: o.outfit, ledMask: o.ledMask, helmet: o.helmet, hat: o.hat, hatStyle: o.hatStyle });
     parent.add(this.actor.root);
     this.home = new THREE.Vector3(o.x, o.y || 0, o.z); this.homeYaw = o.yaw || 0;
     this.performer = !!o.performer;
@@ -38,7 +38,7 @@ export class NPC {
         const tgt = this.path[this.pi];
         _v.copy(tgt).sub(r.position); _v.y = 0; const d = _v.length();
         if (d < 0.35) { this.pi++; if (this.pi >= this.path.length) { if (this.hideAtEnd) { this.hideSafe(); return; } this.state = 'idle'; this.home.copy(r.position); this.homeYaw = this.o.endYaw ?? r.rotation.y; this.actor.play(this.o.endAnim || 'Idle', 0.2); return; } }
-        else { const sp = 4.6 * dt; r.position.addScaledVector(_v, Math.min(1, sp / d)); r.position.y = tgt.y; const yaw = Math.atan2(_v.x, _v.z); let dy = yaw - r.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); r.rotation.y += dy * Math.min(1, dt * 10); this.actor.play('Running', 0.15, 1.05); }
+        else { const sp = 4.6 * dt; r.position.addScaledVector(_v, Math.min(1, sp / d)); r.position.y = tgt.y; const yaw = Math.atan2(_v.x, _v.z); let dy = yaw - r.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); r.rotation.y += dy * Math.min(1, dt * 10); this.actor.play('Running', 0.15, 4.6 / this.actor.gait.run); }
       }
     } else if (this.facePlayer > 0 && G.level) {
       this.facePlayer -= dt; const pp = G.playerPos; if (pp) { const yaw = Math.atan2(pp.x - r.position.x, pp.z - r.position.z); let dy = yaw - r.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); r.rotation.y += dy * Math.min(1, dt * 6); }

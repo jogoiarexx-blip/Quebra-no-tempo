@@ -5,6 +5,9 @@ export function applyResourcePickup(player, type, amount, limits) {
   if (type === 'ammo9' || type === 'shells' || type === 'rockets') {
     target = player.ammo; key = type; cap = limits.ammoCaps[type];
     value = Math.max(1, Math.round(amount * limits.res));
+  } else if (type === 'rifle') {
+    target = player.ammo; key = type; cap = limits.ammoCaps.rifle ?? 40;
+    value = Math.max(1, Math.round(amount * limits.res));
   } else if (type === 'medkit' || type === 'armor') {
     target = player; key = type === 'medkit' ? 'hp' : 'armor';
     cap = type === 'medkit' ? limits.maxHealth : limits.maxArmor;
@@ -27,6 +30,7 @@ export function chooseEnemyDrop(enemyType, player, limits, random = Math.random)
   if (player.weapons.trovao_duplo.have && player.ammo.shells < limits.ammoCaps.shells) {
     add('shells', 2, player.ammo.shells < 4 ? 2 : 0.8);
   }
+  if (player.weapons.ferrovia?.have && (player.ammo.rifle ?? 0) < (limits.ammoCaps.rifle ?? 40)) add('rifle', 4, (player.ammo.rifle ?? 0) < 6 ? 2 : 0.7);
   if (player.armor < limits.maxArmor) add('armor', 15, enemyType === 'E02' ? 0.35 : 0.65);
   if (!choices.length) return null;
   let roll = random() * choices.reduce((sum, c) => sum + c.weight, 0);

@@ -42,8 +42,10 @@ export function createPlayer(scene) {
   const tube=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,.72,10),dark);tube.rotation.x=Math.PI/2;tube.position.z=.12;launcher.add(tube);
   const sight=new THREE.Mesh(new THREE.BoxGeometry(.035,.10,.08),steel);sight.position.set(0,.11,.18);launcher.add(sight);
   const grip=new THREE.Mesh(new THREE.BoxGeometry(.065,.17,.07),wood);grip.position.set(0,-.11,-.08);launcher.add(grip);
-  guns = { martelo9: pistol, trovao_duplo: shot, rompe_casco:launcher };
-  gun = new THREE.Group(); gun.add(pistol, shot, launcher); pistol.visible = shot.visible = launcher.visible = false; scene.add(gun);
+  const rifle = new THREE.Group();   // Ferrovia: cano longo, coronha de madeira e alavanca
+  rifle.add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.78).translate(0, 0.035, 0.36), steel), new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, 0.34).translate(0, 0.0, 0.12), wood), new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.32).translate(0, -0.03, -0.2), wood), new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.008, 4, 10).translate(0, -0.06, 0.0), steel));
+  guns = { martelo9: pistol, trovao_duplo: shot, rompe_casco:launcher, ferrovia: rifle };
+  gun = new THREE.Group(); gun.add(pistol, shot, launcher, rifle); pistol.visible = shot.visible = launcher.visible = rifle.visible = false; scene.add(gun);
   for (let i = 0; i < 10; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshBasicMaterial({ color: 0x35e6ff, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false })); m.visible = false; scene.add(m); ghostPool.push(m); }
   for(let i=0;i<6;i++){
     const m=new THREE.Mesh(new THREE.ConeGeometry(.065,.32,8),new THREE.MeshBasicMaterial({color:0xffc65b}));m.rotation.x=Math.PI/2;m.visible=false;scene.add(m);rocketPool.push({mesh:m,shot:null});
@@ -79,7 +81,11 @@ export function damagePlayer(amount, from) {
   P.armor -= ab; P.hp -= amount - ab; G.S.stats.dmgTaken += amount;
   sfx.hurt(); shake(0.12);
   if (from) { const a = Math.atan2(from.x - P.body.pos.x, from.z - P.body.pos.z); P.hitDirs.push({ ang: a, t: 1.2 }); }
-  if (P.hp <= 0) { P.hp = 0; P.dead = true; P.deadT = 0; sfx.death(); G.hooks.onDeath(); }
+  if (P.hp <= 0) {
+    let rel = from ? Math.atan2(from.x - P.body.pos.x, from.z - P.body.pos.z) - P.facing : 0; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
+    P.deathClip = from && Math.abs(rel) > 2.2 ? 'DeathFront' : Math.random() < .25 ? 'DeathSpin' : 'Death';   // tiro pelas costas derruba para frente
+    P.hp = 0; P.dead = true; P.deadT = 0; sfx.death(); G.hooks.onDeath();
+  }
   return true;
 }
 
@@ -125,7 +131,7 @@ function fire(enemies) {
   const w = WEAPONS[P.current], st = P.weapons[P.current];
   if (st.mag <= 0) { sfx.empty(); P.fireCd = 0.25; if (P.ammo[w.ammo] > 0) startReload(); return; }
   st.mag--; P.fireCd = 1 / w.rate; P.lastFire = 0; G.S.stats.shots++;
-  (P.current === 'martelo9' ? sfx.pistol : sfx.shotgun)();
+  (P.current === 'martelo9' ? sfx.pistol : P.current === 'ferrovia' ? sfx.rifle : sfx.shotgun)();
   const spread = (P.ads ? w.adsSpread : w.spread) + P.bloom + (P.speed > 4 ? 0.006 : 0) + (P.body.grounded ? 0 : 0.02);
   flash(P.muzzle, P.current === 'martelo9' ? 0.16 : 0.3, 0.05);
   if(w.projectile){
@@ -155,10 +161,16 @@ function fire(enemies) {
     if (what && what.e) {
       const res = what.e.enemy.damage(w.dmg, what.e.part, d); anyHit = true; head = head || what.e.part === 'head'; killed = killed || res;
       sparks(end, what.e.enemy.type === 'DRONE' ? 0x9fe8ff : 0xff5030, 5, 3, 0.3);
+      if (w.pierce) {   // perfuração leve: o projétil segue e acerta o próximo inimigo da linha com dano reduzido
+        const first = what.e.enemy, keep = first.spawnT; first.spawnT = 1;
+        const rest = Math.min(w.range, len + 0.6) - t, wall2 = raycast(end.x, end.y, end.z, d.x, d.y, d.z, rest, solidOnly), lim = wall2 ? wall2.t : rest;
+        const second = lim > 0.2 ? enemies.rayHit(end, d, lim) : null; first.spawnT = keep;
+        if (second) { const k2 = second.enemy.damage(w.dmg * w.pierce, second.part, d); killed = killed || k2; const e2 = end.clone().addScaledVector(d, second.t); tracer(end, e2); sparks(e2, 0xff5030, 5, 3, 0.3); }
+      }
     } else if (what && what.c) { sparks(end, 0xffd9a0, 4, 3, 0.25); if(G.hooks.onShootCollider(what.c, w.dmg, end)>0)anyHit=true; }
   }
   if (anyHit) { G.S.stats.hits++; G.hooks.hitMarker(head, killed); (killed ? sfx.kill : head ? sfx.head : sfx.hit)(); }
-  P.pitch += w.kick * (P.ads ? 0.6 : 1); P.bloom = Math.min(0.03, P.bloom + 0.008); shake(P.current === 'martelo9' ? 0.02 : 0.08);
+  P.pitch += w.kick * (P.ads ? 0.6 : 1); P.bloom = Math.min(0.03, P.bloom + 0.008); shake(P.current === 'martelo9' ? 0.02 : P.current === 'ferrovia' ? 0.06 : 0.08);
   if (st.mag <= 0 && P.ammo[w.ammo] > 0) startReload();
 }
 function melee(enemies) {
@@ -215,7 +227,7 @@ export function updatePlayer(dt, enemies) {
 
   if (P.dead) {
     P.deadT += dt; v.x = v.z = 0; v.y -= GRAV * dt; moveBody(b, dt); actor.root.position.copy(p);
-    actor.play('Fall', 0.2); actor.aimTarget = 0; spin.rotation.x = -Math.min(1, P.deadT / 0.5) * 1.45; spin.position.y = 0.75 - Math.min(1, P.deadT / 0.5) * 0.45;
+    actor.play(P.deathClip || 'Death', 0.12, 1, { once: true }); actor.aimTarget = 0; spin.rotation.set(0, 0, 0); spin.position.y = 0.75;
     return;
   }
   // ---------- olhar ----------
@@ -282,7 +294,7 @@ export function updatePlayer(dt, enemies) {
   if (b.grounded && P.speed > 2) { P.stepT -= dt * P.speed; if (P.stepT <= 0) { P.stepT = 2.3; sfx.step(); } }
 
   // ---------- armas ----------
-  if (!P.holster && hit('Digit1')) switchWeapon('martelo9'); if (!P.holster && hit('Digit2')) switchWeapon('trovao_duplo'); if (!P.holster && hit('Digit3')) switchWeapon('rompe_casco');
+  if (!P.holster && hit('Digit1')) switchWeapon('martelo9'); if (!P.holster && hit('Digit2')) switchWeapon('trovao_duplo'); if (!P.holster && hit('Digit3')) switchWeapon('rompe_casco'); if (!P.holster && hit('Digit4')) switchWeapon('ferrovia');
   if (!P.holster && (input.wheel || (pad && (pad.hit.left || pad.hit.right || pad.hit.y)))) cycleWeapon();
   if (hit('KeyV') || (pad && pad.hit.down)) P.shoulder *= -1;
   if ((hit('KeyF') || (pad && pad.r3)) && !locked && P.meleeCd <= 0 && P.state !== 'ROLLING' && P.state !== 'MANTLING' && !P.holster) melee(enemies);
@@ -310,16 +322,24 @@ export function updatePlayer(dt, enemies) {
   let df = tf - P.facing; df = Math.atan2(Math.sin(df), Math.cos(df)); P.facing += df * Math.min(1, dt * (combat ? 22 : 12));
   actor.root.position.copy(p); actor.root.rotation.y = P.facing;
   spin.rotation.x = 0; spin.position.y = 0.75; actor.model.position.z = 0;
-  if (P.state === 'ROLLING') { actor.play('Crouch', 0.06); spin.rotation.x = (P.rollT / 0.5) * Math.PI * 2; spin.position.y = 0.55; }
-  else if (P.state === 'MANTLING') actor.play('Crouch', 0.1);
-  else if (P.state === 'SLIDING') { actor.play('Fall', 0.06); spin.rotation.x = -0.75; spin.position.y = 0.42; }
+  // pouso: pequena compressão do corpo por 0,16 s (antes não havia transição entre queda e chão)
+  if (b.grounded && !P.wasGrounded && P.airT > 0.25) P.landT = 0.16;
+  P.airT = b.grounded ? 0 : (P.airT || 0) + dt; P.wasGrounded = b.grounded; P.landT = Math.max(0, (P.landT || 0) - dt);
+  const fwdL = v.x * Math.sin(P.facing) + v.z * Math.cos(P.facing), sideL = v.x * Math.cos(P.facing) - v.z * Math.sin(P.facing), gait = actor.gait;
+  if (P.state === 'ROLLING') { actor.play('Roll', 0.05); spin.rotation.x = (P.rollT / 0.5) * Math.PI * 2; spin.position.y = 0.55; }
+  else if (P.state === 'MANTLING') actor.play('Jump', 0.1);
+  else if (P.state === 'SLIDING') { actor.play('Jump', 0.06); spin.rotation.x = -0.75; spin.position.y = 0.42; }
+  else if (P.meleeT > 0) actor.play('Melee', 0.04, 1, { once: true });
   else if (P.crouch && b.grounded) { const moving = P.speed > 0.12; actor.play(moving ? 'CrouchWalk' : 'CrouchIdle', 0.18, moving ? Math.max(0.12, P.speed / (0.56 * actor.model.scale.y / (0.62 * 0.9))) : 1); }
-  else if (!b.grounded) actor.play('Fall', 0.12);
-  else if (P.speed < 0.4) actor.play('Idle', 0.18);
-  else if (P.speed < 3.9) actor.play('Walking', 0.15, Math.max(0.6, P.speed / 1.9));
-  else actor.play('Running', 0.12, P.speed / 5.6);
-  actor.aimTarget = combat && P.state !== 'ROLLING' && P.state !== 'MANTLING' && P.state !== 'SLIDING' ? 1 : 0; actor.pitch = P.pitch;
-  if (P.meleeT > 0) { const k = P.meleeT / 0.3; spin.rotation.y = Math.sin(k * Math.PI) * -0.9; } else spin.rotation.y = 0;
+  else if (!b.grounded) actor.play(v.y > 1.2 ? 'Jump' : 'Fall', 0.12);
+  else if (P.speed < 0.4) actor.play(P.reloadT > 0 ? 'Reload' : 'Idle', 0.18);
+  // em combate o corpo encara a mira: andar de lado ou de costas usa os ciclos laterais/ré (antes deslizava andando para frente)
+  else if (combat && fwdL < -0.45 * P.speed) actor.play('WalkBackward', 0.15, Math.max(0.6, P.speed / gait.walk));
+  else if (combat && Math.abs(sideL) > 0.7 * P.speed) actor.play(sideL < 0 ? 'StrafeLeft' : 'StrafeRight', 0.15, Math.max(0.7, P.speed / (gait.walk * 1.05)));
+  else if (P.speed < 3.9) actor.play('Walking', 0.15, Math.max(0.6, P.speed / gait.walk));
+  else actor.play('Running', 0.12, P.speed / gait.run);
+  actor.aimTarget = combat && P.reloadT <= 0 && P.meleeT <= 0 && P.state !== 'ROLLING' && P.state !== 'MANTLING' && P.state !== 'SLIDING' ? 1 : P.reloadT > 0 && P.speed >= 0.4 ? 0.35 : 0; actor.pitch = P.pitch;
+  spin.rotation.y = 0; if (P.landT > 0) spin.position.y = 0.75 - Math.sin(P.landT / 0.16 * Math.PI) * 0.06;
 }
 
 // Câmera sobre o ombro com colisão; também calcula ponto de mira e posição do cano.

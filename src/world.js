@@ -75,6 +75,22 @@ export function materials() {
   M.lampOff = new THREE.MeshBasicMaterial({ color: 0x40181a });
   M.lampOn = new THREE.MeshBasicMaterial({ color: 0x4dff88 });
   M.lampRed = new THREE.MeshBasicMaterial({ color: 0xff2a2a });
+  // ---- Ato II (1888): madeira, areia, adobe, telhado, rocha, minério luminescente, feno ----
+  M.sand = lam(canvasTex(256, 256, (g, w, h) => { noise(g, w, h, '#a8865a', 0.09, 4200); g.strokeStyle = 'rgba(90,60,30,.25)'; g.lineWidth = 2; for (let i = 0; i < 9; i++) { g.beginPath(); const y = Math.random() * h; g.moveTo(0, y); g.bezierCurveTo(w * .3, y + 8, w * .6, y - 8, w, y); g.stroke(); } }));
+  M.planks = lam(canvasTex(128, 128, (g, w, h) => { noise(g, w, h, '#8a6238', 0.08); for (let y = 0; y < h; y += 16) { g.fillStyle = 'rgba(40,22,8,.55)'; g.fillRect(0, y, w, 2); g.fillStyle = 'rgba(255,220,170,.06)'; g.fillRect(0, y + 2, w, 2); for (let k = 0; k < 2; k++) { g.fillStyle = 'rgba(30,16,6,.6)'; g.fillRect(Math.random() * w, y + 6, 2, 2); } } }));
+  M.boards = lam(canvasTex(128, 128, (g, w, h) => { noise(g, w, h, '#6e4c2c', 0.09); for (let x = 0; x < w; x += 16) { g.fillStyle = 'rgba(30,16,6,.55)'; g.fillRect(x, 0, 2, h); } }));
+  M.adobe = lam(canvasTex(256, 256, (g, w, h) => { noise(g, w, h, '#b88a62', 0.07); g.fillStyle = 'rgba(80,50,30,.18)'; for (let i = 0; i < 14; i++) g.fillRect(Math.random() * w, Math.random() * h, 20 + Math.random() * 40, 3); }));
+  M.shingle = lam(canvasTex(128, 128, (g, w, h) => { noise(g, w, h, '#5a3a26', 0.1); g.fillStyle = 'rgba(0,0,0,.35)'; for (let y = 0; y < h; y += 12) { g.fillRect(0, y, w, 2); for (let x = (y / 12) % 2 ? 0 : 8; x < w; x += 16) g.fillRect(x, y, 2, 12); } }));
+  M.rock = new THREE.MeshPhongMaterial({ map: canvasTex(256, 256, (g, w, h) => { noise(g, w, h, '#4a4038', 0.12, 5000); g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 3; for (let i = 0; i < 12; i++) { g.beginPath(); g.moveTo(Math.random() * w, Math.random() * h); g.lineTo(Math.random() * w, Math.random() * h); g.stroke(); } }), shininess: 6, specular: 0x111111 });
+  M.rock.bumpMap = M.rock.map; M.rock.bumpScale = 0.05;
+  M.ore = new THREE.MeshBasicMaterial({ color: 0x3affd0 });
+  M.oreDim = new THREE.MeshLambertMaterial({ color: 0x1d6b66, emissive: 0x0c4a44 });
+  M.hay = lam(canvasTex(64, 64, (g, w, h) => { noise(g, w, h, '#c9a24a', 0.15, 900); g.strokeStyle = 'rgba(120,80,20,.5)'; for (let i = 0; i < 30; i++) { g.beginPath(); const x = Math.random() * w, y = Math.random() * h; g.moveTo(x, y); g.lineTo(x + 8, y + (Math.random() - 0.5) * 4); g.stroke(); } }));
+  M.brass = new THREE.MeshPhongMaterial({ color: 0xc9a046, specular: 0xffe6a0, shininess: 70 });
+  M.iron = new THREE.MeshPhongMaterial({ color: 0x3a3a3e, specular: 0x777777, shininess: 30 });
+  M.cloth = lam(canvasTex(64, 64, (g, w, h) => { noise(g, w, h, '#7a1e22', 0.08, 300); for (let x = 0; x < w; x += 8) { g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(x, 0, 3, h); } }));
+  M.mud = new THREE.MeshPhongMaterial({ map: canvasTex(128, 128, (g, w, h) => noise(g, w, h, '#3a2c20', 0.08, 1500)), color: 0x9a8a7a, specular: 0x222222, shininess: 20 });
+  M.lantern = new THREE.MeshBasicMaterial({ color: 0xffc46a });
   return (MAT = M);
 }
 
@@ -212,4 +228,28 @@ export function streetLamp(L, x, z, y = 0, color = 0xffc070, side = 1) {
   L.B(L.M.metal, x, x + 1.1 * side, y + 5.1, y + 5.25, z - 0.08, z + 0.08, { noCol: true });
   L.mesh(new THREE.BoxGeometry(0.5, 0.08, 0.3), new THREE.MeshBasicMaterial({ color }), x + 1.0 * side, y + 5.08, z);
   return L.light(x + 1.0 * side, y + 4.6, z, color, 20, 12);
+}
+// Poeira/brasas: partículas lentas que seguem a câmera (substitui a chuva nas fases do Oeste e da mina).
+export function makeDust(L, n = 420, color = 0xe8c890, size = 0.06, rise = 0.15) {
+  const pos = new Float32Array(n * 3), vel = new Float32Array(n * 3);
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({ color, size, transparent: true, opacity: 0.55, depthWrite: false });
+  const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; L.root.add(pts);
+  for (let i = 0; i < n; i++) { pos[i * 3] = (Math.random() - 0.5) * 36; pos[i * 3 + 1] = Math.random() * 10; pos[i * 3 + 2] = (Math.random() - 0.5) * 36; vel[i * 3] = 0.6 + Math.random() * 0.8; vel[i * 3 + 1] = (Math.random() - 0.5) * rise; vel[i * 3 + 2] = (Math.random() - 0.5) * 0.5; }
+  const dust = { points: pts, on: 1, update(dt, cam, enabled) {
+    dust.on += ((enabled ? 1 : 0.35) - dust.on) * Math.min(1, dt * 2); mat.opacity = 0.55 * dust.on;
+    for (let i = 0; i < n; i++) {
+      let x = pos[i * 3] + vel[i * 3] * dt, y = pos[i * 3 + 1] + vel[i * 3 + 1] * dt + Math.sin(x * 0.7 + i) * 0.002, z = pos[i * 3 + 2] + vel[i * 3 + 2] * dt;
+      if (Math.abs(x - cam.x) > 18 || Math.abs(z - cam.z) > 18 || Math.abs(y - cam.y) > 7) { x = cam.x + (Math.random() - 0.5) * 36; y = cam.y + (Math.random() - 0.5) * 10; z = cam.z + (Math.random() - 0.5) * 36; }
+      pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
+    }
+    geo.attributes.position.needsUpdate = true;
+  } };
+  L.rain = dust; return dust;
+}
+// Lampião de parede/poste do Oeste com luz lógica quente.
+export function lantern(L, x, y, z, color = 0xffb35a, intensity = 16, dist = 10) {
+  L.mesh(new THREE.BoxGeometry(0.22, 0.3, 0.22), L.M.lantern, x, y, z);
+  L.mesh(new THREE.BoxGeometry(0.28, 0.05, 0.28), L.M.iron, x, y + 0.18, z);
+  return L.light(x, y, z, color, intensity, dist);
 }

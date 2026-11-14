@@ -2,7 +2,7 @@
 // (GDD pede IndexedDB; para o slice usamos localStorage com o mesmo contrato de confirmação.)
 const KEY = 'quebra_no_tempo_v1';
 export const SAVE_SCHEMA = 1;
-export const CONTENT_VERSION = 'a1-complete-0.8.0';
+export const CONTENT_VERSION = 'a2-forte-0.11.0';
 let simulateFailure = false;
 export function setSimulateSaveFailure(v) { simulateFailure = v; }   // usado pelo teste A1M1-015
 function read(k) { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : null; } catch { return null; } }
@@ -18,6 +18,10 @@ export function loadAll() {
   if(d.campaign.completed['A1-M1'])unlocked.add('A1-M2');
   if(d.campaign.completed['A1-M2'])unlocked.add('A1-M3');
   if(d.campaign.completed['A1-M3'])unlocked.add('A1-M4');
+  if(d.campaign.completed['A1-M4'])unlocked.add('A2-M1');      // saves do Ato I concluído ganham o Ato II
+  if(d.campaign.completed['A2-M1'])unlocked.add('A2-M2');
+  if(d.campaign.completed['A2-M2'])unlocked.add('A2-M3');
+  if(d.campaign.completed['A2-M3'])unlocked.add('A2-M4');
   d.campaign.unlocked=[...unlocked];
   return d;
 }

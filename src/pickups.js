@@ -10,6 +10,8 @@ export const PICKUPS = Object.freeze({
   armor: { label: 'PROTEÇÃO', color: 0x35d9ff },
   pecas: { label: 'PEÇAS CRONAIS', color: 0xc28aff },
   weapon_trovao: { label: 'TROVÃO DUPLO', color: 0xf2f4ff },
+  rifle: { label: 'BALAS .44', color: 0xd9a64a },
+  weapon_ferrovia: { label: 'FERROVIA', color: 0xe8c47a },
 });
 const templates = new Map();
 
@@ -49,6 +51,15 @@ function build(type) {
       cyl('mark', .059, .07, x, -.09, 0);
       cyl('mark', .047, .012, x, .171, 0);
     }
+  } else if (type === 'rifle') {
+    colors.mark = 0xb8742a;
+    box('body', .36, .06, .16, 0, -.15);
+    for (let i = 0; i < 5; i++) { const x = (i - 2) * .07; cyl('accent', .026, .26, x, 0, 0); part('mark', new THREE.ConeGeometry(.026, .07, 8), x, .165, 0); }
+  } else if (type === 'weapon_ferrovia') {
+    colors.accent = 0x7a4a26;
+    part('body', new THREE.CylinderGeometry(.025, .025, .9, 8), 0, .04, .18, Math.PI / 2);
+    box('accent', .07, .08, .36, 0, 0, -.12); box('accent', .08, .13, .3, 0, -.03, -.42);
+    part('mark', new THREE.TorusGeometry(.05, .012, 4, 10), 0, -.07, .02);
   } else if (type === 'rockets') {
     for(const x of [-.12,.12]){cyl('body',.075,.48,x,0,0);part('accent',new THREE.ConeGeometry(.075,.18,8),x,.33,0);box('mark',.23,.10,.045,x,-.19,0);box('mark',.045,.10,.23,x,-.19,0);}
   } else if (type === 'armor') {

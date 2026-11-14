@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 import { makeCrouchClips } from './crouch.js';
-import { makeActorClips } from './actor-animations.js';
+import { makeActorClips, measureGait } from './actor-animations.js';
 
 export const assets = {};
 const MODELS = 'models/';     // relativo à página: funciona em qualquer subpasta do GitHub Pages
@@ -19,19 +19,42 @@ export async function loadCharacters(onProgress) {
     g.animations.push(...makeActorClips(g.scene,g.animations,n));
     const clips = {}; g.animations.forEach((c) => (clips[c.name] = c));
     let material = null; g.scene.traverse((o) => { if (o.isMesh) material = o.material; });
-    assets[n] = { scene: g.scene, clips, material };
+    assets[n] = { scene: g.scene, clips, material, gait: gaitOf(g.scene, clips) };
     onProgress(++done / names.length);
   }));
   await Promise.all([loadMasks('sol', `${MODELS}sol_masks.png`), loadMasks('gael', `${MODELS}gael_masks.png`)]);
   // modelos próprios de inimigos (opcional): models/enemies/manifest.json
   try {
     const man = await (await fetch(`${MODELS}enemies/manifest.json`)).json();
-    for (const id of ['E01', 'E02']) if (man[id]) {
-      const g = await loader.loadAsync(`${MODELS}enemies/${man[id]}`); g.animations.push(...makeActorClips(g.scene,g.animations,id)); const clips = {}; g.animations.forEach((c) => (clips[c.name] = c));
+    for (const id of ['E01', 'E02', 'E04']) if (man[id]) {
+      const g = await loader.loadAsync(`${MODELS}enemies/${man[id]}`); ensureIdle(g.animations); g.animations.push(...makeActorClips(g.scene,g.animations,id)); const clips = {}; g.animations.forEach((c) => (clips[c.name] = c));
       g.scene.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; if (o.material.map) o.material.map.anisotropy = 4; o.material.metalness = Math.min(o.material.metalness, 0.3); } });
-      assets[id] = { scene: g.scene, clips, material: null, custom: true };
+      assets[id] = { scene: g.scene, clips, material: null, custom: true, gait: gaitOf(g.scene, clips) };
     }
   } catch (e) { console.warn('manifest de inimigos indisponível', e); }
+}
+
+// Modelos que chegam só com locomoção (ex.: Bruto Réptil: Walking/Running) ganham um Idle neutro:
+// média de cada trilha ao longo do ciclo de caminhada (pernas retas, braços caídos, quadril sem balanço).
+// velocidade natural medida no próprio clipe (escala 1); o Actor converte para a escala dele
+export function gaitOf(scene, clips) { try { return { walk: measureGait(scene, clips.Walking), run: measureGait(scene, clips.Running) }; } catch { return { walk: null, run: null }; } }
+export function ensureIdle(animations) {
+  if (animations.some((c) => c.name === 'Idle')) return null;
+  const walk = animations.find((c) => c.name === 'Walking') || animations[0]; if (!walk) return null;
+  const tracks = [];
+  for (const t of walk.tracks) {
+    const n = t.getValueSize(), count = t.times.length, out = new Float32Array(n);
+    if (t.name.endsWith('.quaternion')) {
+      const ref = Array.from(t.values.slice(0, 4));
+      for (let i = 0; i < count; i++) { const o = i * 4, dot = ref[0] * t.values[o] + ref[1] * t.values[o + 1] + ref[2] * t.values[o + 2] + ref[3] * t.values[o + 3], sg = dot < 0 ? -1 : 1; for (let k = 0; k < 4; k++) out[k] += sg * t.values[o + k]; }
+      const len = Math.hypot(out[0], out[1], out[2], out[3]) || 1; for (let k = 0; k < 4; k++) out[k] /= len;
+      tracks.push(new THREE.QuaternionKeyframeTrack(t.name, [0, 1], [...out, ...out]));
+    } else {
+      for (let i = 0; i < count; i++) for (let k = 0; k < n; k++) out[k] += t.values[i * n + k] / count;
+      tracks.push(new THREE.VectorKeyframeTrack(t.name, [0, 1], [...out, ...out]));
+    }
+  }
+  const idle = new THREE.AnimationClip('Idle', 1, tracks); animations.push(idle); return idle;
 }
 
 // ---------- figurinos por máscara: o mesmo modelo com roupas de cores/materiais diferentes ----------
@@ -55,6 +78,12 @@ export const LOOKS = {                       // variações do modelo masculino 
   p3: { jacket: '#2f6b4f', pants: '#3a3226', hair: '#6b4a2a', boots: '#2a2018', gloves: null },
   p4: { jacket: '#d9d9de', pants: '#17171c', hair: '#c9a86a', boots: '#d9d9de', gloves: null },
   p5: { jacket: '#b8541c', pants: '#24303c', hair: '#141414', boots: '#2a1a12', gloves: null },
+  // Ato II (1888): sobretudos empoeirados, coletes e couro
+  prospector: { jacket: '#7a5a34', pants: '#4a3a28', hair: '#5a4026', boots: '#2e1e12', gloves: '#3a2a18' },
+  pistoleiro: { jacket: '#1c1a1e', pants: '#3a3430', hair: '#121212', boots: '#20140c', gloves: '#101010' },
+  pianista: { jacket: '#6a1c22', pants: '#1a1a1e', hair: '#2a1a10', boots: '#141414', gloves: null },
+  xerife: { jacket: '#8a6a3a', pants: '#2e2a24', hair: '#9a9a9a', boots: '#3a2414', gloves: null },
+  minerador: { jacket: '#4a4a3a', pants: '#3a2e22', hair: '#3a2a1a', boots: '#22160e', gloves: '#2a2018' },
 };
 const CHANNELS = {
   sol: [['fabric', 2.3, 0.1], ['leather', 5, 0.18], ['hair', 6, 0.16], ['stockings', 0.6, 0.35]],
@@ -132,10 +161,13 @@ export class Actor {
       const bn = tr.name.split('.')[0].replace('mixamorig', '');
       if (tr.name.endsWith('.quaternion') && UPPER.includes(bn)) this.aimPose[bn] = new THREE.Quaternion().fromArray(tr.values, 0);
     }
+    const sc = opts.scale || 1, clampG = (v, d) => Math.min(d * 1.6, Math.max(d * .6, v ? v * sc : d));
+    this.gait = { walk: clampG(a.gait?.walk, 1.9), run: clampG(a.gait?.run, 5.6) };   // m/s em que o clipe não patina
     this.play(opts.start || 'Idle', 0);
     if (opts.helmet) this.addHelmet(opts.helmet);
     if (opts.armor) this.addArmor(opts.armor);
     if (opts.ledMask) this.addLedMask(opts.ledMask);
+    if (opts.hat) this.addHat(opts.hat, opts.hatStyle);
   }
   // peças rígidas presas aos ossos (montadas na pose de bind, logo após a criação)
   attachBox(boneName, w, h, d, off, mat) {
@@ -167,6 +199,25 @@ export class Actor {
     const visor = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.07, 0.1), new THREE.MeshBasicMaterial({ color })); visor.position.set(0, 0.02, 0.14); g.add(visor);
     head.getWorldPosition(_v); g.position.copy(_v).add(new THREE.Vector3(0, 0.1 * this.model.scale.y, 0.02));
     this.root.add(g); head.attach(g); this.visor = visor;
+  }
+  // chapéu de aba larga (Ato II): copa + aba + fita, preso ao osso da cabeça
+  addHat(color = 0x3a2a1a, style = 'cowboy') {
+    this.root.updateMatrixWorld(true);
+    const head = this.bones.Head; if (!head) return;
+    const sc = this.model.scale.y, felt = new THREE.MeshLambertMaterial({ color }), band = new THREE.MeshLambertMaterial({ color: style === 'miner' ? 0xffc65a : 0x15110e });
+    const g = new THREE.Group();
+    if (style === 'miner') {
+      const shell = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), felt); g.add(shell);
+      const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.02, 12), felt); g.add(brim);
+      const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.05, 8), band); lamp.rotation.x = Math.PI / 2; lamp.position.set(0, 0.08, 0.16); g.add(lamp);
+    } else {
+      const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 0.16, 10), felt); crown.position.y = 0.08; g.add(crown);
+      const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.018, 14), felt); brim.scale.z = 0.86; g.add(brim);
+      const ribbon = new THREE.Mesh(new THREE.CylinderGeometry(0.152, 0.152, 0.035, 10), band); ribbon.position.y = 0.02; g.add(ribbon);
+    }
+    g.scale.setScalar(sc);
+    head.getWorldPosition(_v); g.position.copy(_v).add(new THREE.Vector3(0, 0.17 * sc, 0.0));
+    this.root.add(g); head.attach(g); g.traverse((o) => { if (o.isMesh) o.castShadow = true; }); this.hat = g;
   }
   play(name, fade = 0.15, timeScale = 1, options = {}) {
     if (!this.actions[name]) name = 'Idle';

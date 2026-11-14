@@ -3,8 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QUEBRA NO TEMPO — Ato I</title>
+<title>QUEBRA NO TEMPO — Atos I e II</title>
 <style>
+@font-face{font-family:"Bungee";src:url(./vendor/fonts/bungee.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Black Ops One";src:url(./vendor/fonts/black-ops-one.woff2) format("woff2");font-display:swap}
 :root{--bg:#0b0d12;--panel:rgba(12,15,22,.88);--line:rgba(255,255,255,.14);--ink:#eef0f4;--dim:#9aa3b2;--amber:#ffb030;--red:#ff3048;--cyan:#35e6ff;--pink:#ff4fd0;--ok:#4dff88;
   --f:"Bahnschrift","DIN Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif}
 *{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--f);overflow:hidden;user-select:none}
@@ -73,6 +75,47 @@ button{font:inherit;color:inherit;cursor:pointer}
 .medal{font-size:20px;letter-spacing:.2em;color:var(--amber)}
 #boot{flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--bg)}
 #boot .pb{width:260px;height:4px;background:#222}#boot .pb div{height:100%;width:0;background:var(--amber);transition:width .2s}
+/* ---------- título / abertura / carregamento (pôster de ação noventista, identidade própria) ---------- */
+.hz{position:absolute;left:0;right:0;height:22px;background:repeating-linear-gradient(-45deg,#e0b020 0 18px,#121212 18px 36px);animation:hz 1.2s linear infinite;box-shadow:0 0 18px rgba(0,0,0,.8)}
+@keyframes hz{to{background-position:51px 0}}
+.chrome{font-family:"Bungee",Impact,"Arial Black",sans-serif;line-height:.86;letter-spacing:.01em;background:linear-gradient(#fff 0%,#c9d3e0 42%,#4a5568 50%,#e8eef6 53%,#7a8696 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:2px #8a1010;filter:drop-shadow(0 4px 0 #0a0606) drop-shadow(0 0 22px rgba(255,90,30,.45))}
+.fire{background:linear-gradient(#fff6c8 0%,#ffcc33 35%,#ff6a00 55%,#c81e00 57%,#5a0a00 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-stroke:2px #ffb030}
+.ops{font-family:"Black Ops One",Impact,sans-serif;letter-spacing:.06em}
+#title{flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(0,0,0,.35),rgba(0,0,0,.92));text-align:center;cursor:pointer}
+#title .big{font-size:clamp(54px,11vw,170px)}#title .big2{font-size:clamp(40px,8vw,128px);margin-top:.08em}
+#title .slash{width:min(760px,80vw);height:6px;background:var(--red);transform:rotate(-6deg);margin:-.2em auto .4em;box-shadow:0 0 22px var(--red)}
+#title .tagl{color:#dfe6f0;font-size:clamp(14px,2vw,22px);margin:22px 0 46px}
+#title .press{font-size:clamp(16px,2.2vw,26px);color:var(--amber);animation:blink 1s steps(2) infinite}
+#title .legal{position:absolute;bottom:40px;color:var(--dim);font-size:12px;letter-spacing:.12em}
+@keyframes blink{50%{opacity:.15}}
+#cine{position:fixed;inset:0;display:none;z-index:20;cursor:pointer}#cine.on{display:block}
+#cineC{position:absolute;inset:0;width:100%;height:100%}
+#cine:before,#cine:after{content:"";position:absolute;left:0;right:0;height:9vh;background:#000;z-index:2}#cine:before{top:0}#cine:after{bottom:0}
+#cineSub{position:absolute;left:50%;bottom:12vh;transform:translateX(-50%);max-width:min(860px,88vw);text-align:center;font-size:clamp(16px,2vw,23px);line-height:1.35;padding:8px 18px;background:rgba(0,0,0,.66);opacity:0;transition:opacity .2s;z-index:3}
+#cineSub b{display:block;color:var(--amber);font-family:"Black Ops One",Impact,sans-serif;letter-spacing:.12em;font-size:.75em;margin-bottom:2px}
+#cineSkip{position:absolute;right:24px;top:calc(9vh + 12px);z-index:3;color:#fff;font-size:12px;letter-spacing:.2em;opacity:0;transition:opacity .4s}
+#loading{display:none;position:fixed;inset:0;z-index:15;background:#000}#loading.on{display:block}
+#loadArt{position:absolute;inset:0;width:100%;height:100%}
+#loading .hz.t{top:0}#loading .hz.b{bottom:0}
+#loading .lcol{position:absolute;left:5vw;top:9vh;width:min(1100px,90vw)}
+#loadKicker{color:var(--amber);font-size:clamp(13px,1.6vw,18px)}
+#loadTitle{display:block;width:min(1100px,90vw);height:auto;margin:6px 0 4px -1vw}
+#loadBrief{max-width:640px;color:#e8ecf2;font:clamp(14px,1.5vw,18px)/1.45 system-ui,sans-serif;text-shadow:0 2px 6px #000}
+#loadSteps{list-style:none;padding:0;margin:22px 0 0;font-size:13px;color:#9fe8ff;letter-spacing:.14em}
+#loadSteps li{display:flex;gap:16px;max-width:420px;justify-content:space-between;animation:pop .2s}#loadSteps b{color:var(--ok)}
+@keyframes pop{from{transform:translateX(-12px);opacity:0}}
+#loading .lbot{position:absolute;left:5vw;right:5vw;bottom:calc(22px + 5vh)}
+.lbar{height:18px;border:2px solid #e0b020;background:#120c06;transform:skewX(-18deg);max-width:620px}
+#loadBar{height:100%;width:0;background:repeating-linear-gradient(90deg,#ffcc33 0 10px,#c8781a 10px 14px);transition:width .25s;box-shadow:0 0 16px rgba(255,160,40,.7)}
+#loadPct{font-size:14px;color:var(--amber);margin:6px 0 0}
+.bubble{position:absolute;right:0;bottom:46px;width:min(470px,42vw);background:#f6f0de;color:#1a1208;border:4px solid #120c06;padding:14px 18px;font:600 clamp(13px,1.3vw,16px)/1.35 system-ui,sans-serif;box-shadow:6px 6px 0 #c81e1e;transform:rotate(1deg)}
+.bubble:after{content:"";position:absolute;right:42px;bottom:-22px;border:12px solid transparent;border-top-color:#120c06}
+.bubble small{display:block;font-family:"Black Ops One",Impact,sans-serif;color:#c81e1e;letter-spacing:.14em;margin-bottom:4px;font-size:13px}
+#loadGo{position:absolute;left:0;right:0;bottom:-6px;text-align:center;font-size:clamp(16px,2vw,24px);color:#fff;opacity:0;text-shadow:0 0 12px #ff3a20}
+#loadGo.on{opacity:1;animation:blink 1s steps(2) infinite}
+body.cinematic #playTools,body.cinematic #touchControls{display:none!important}
+#misList .act{font-family:"Black Ops One",Impact,sans-serif;color:var(--amber);letter-spacing:.14em;margin:14px 0 4px;font-size:14px}
+@media (max-width:700px){.bubble{position:static;width:auto;margin:14px 0 26px}#loading .lbot{bottom:4vh}}
 #doc .card{border-top-color:var(--cyan)}#doc pre{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;font-size:14px;line-height:1.55;color:#cfe9f2}
 @media (max-width:700px){#obj{max-width:60vw}#weapon .a{font-size:32px}}
 </style>
@@ -96,21 +139,38 @@ button{font:inherit;color:inherit;cursor:pointer}
 </div>
 <div id="fade"></div>
 
-<div id="boot" class="layer on"><div class="logo">QUEBRA <span>NO TEMPO</span></div><div class="pb"><div id="bootP"></div></div><div id="bootT" style="color:var(--dim);letter-spacing:.2em;font-size:12px">CARREGANDO</div></div>
+<div id="boot" class="layer on"><div class="hz" style="top:0"></div><div class="chrome" style="font-size:clamp(44px,8vw,110px)">QUEBRA</div><div class="chrome fire" style="font-size:clamp(34px,6vw,84px)">NO TEMPO</div><div class="pb"><div id="bootP"></div></div><div id="bootT" style="color:var(--dim);letter-spacing:.2em;font-size:12px">CARREGANDO</div></div>
+
+<div id="title" class="layer"><div class="hz" style="top:0"></div><div class="hz" style="bottom:0"></div>
+  <div class="chrome big">QUEBRA</div><div class="slash"></div><div class="chrome fire big2">NO TEMPO</div>
+  <div class="tagl ops">O PASSADO MENTIU. O FUTURO VAI PAGAR.</div>
+  <div class="press ops">PRESSIONE QUALQUER TECLA</div>
+  <div class="legal">Conteúdo 18+ • violência estilizada e casas noturnas adultas sem nudez explícita • v0.9.0</div>
+</div>
+
+<div id="cine"><canvas id="cineC"></canvas><div id="cineSub"></div><div id="cineSkip" class="ops">ESC / ENTER / CLIQUE • PULAR</div></div>
+
+<div id="loading"><canvas id="loadArt"></canvas><div class="hz t"></div><div class="hz b"></div>
+  <div class="lcol"><div id="loadKicker" class="ops"></div><canvas id="loadTitle"></canvas><div id="loadBrief"></div><ul id="loadSteps"></ul></div>
+  <div class="lbot"><div class="bubble"><small>DICA DO GAEL</small><span id="loadTip"></span></div>
+    <div class="lbar"><div id="loadBar"></div></div><div id="loadPct" class="ops">0%</div>
+    <div id="loadGo" class="ops">PRESSIONE QUALQUER TECLA PARA DETONAR</div></div>
+</div>
 
 <div id="menu" class="layer menu"><div class="col">
-  <div class="logo">QUEBRA<br><span>NO TEMPO</span></div>
-  <div class="tag">O PASSADO MENTIU. O FUTURO VAI PAGAR.</div>
+  <div class="chrome" style="font-size:clamp(42px,6.4vw,92px)">QUEBRA</div><div class="chrome fire" style="font-size:clamp(32px,4.8vw,70px);margin-top:4px">NO TEMPO</div>
+  <div class="tag ops">O PASSADO MENTIU. O FUTURO VAI PAGAR.</div>
   <button class="btn" id="bCont">Continuar<small id="contInfo"></small></button>
   <button class="btn" id="bNew">Nova campanha<small>Ato I • A1-M1 — Rua Quebrada</small></button>
-  <button class="btn" id="bMis">Missões<small>Rua Quebrada • Noite de Neon • Usina Norte • Núcleo de Ruptura</small></button>
+  <button class="btn" id="bMis">Missões<small>Ato I: Nova Aurora, 2039 • Ato II: Poeira Alta e Mina Treze, 1888</small></button>
+  <button class="btn" id="bIntro">Abertura<small>Rever a cena de abertura</small></button>
   <button class="btn" id="bOpt">Opções</button>
   <button class="btn" id="bCtl">Controles</button>
-  <div class="foot">Ato I completo • A1-M1 → A1-M4 (v0.8.0) • revisão de design 2.2 • valores de protótipo, não balanceados em playtest.<br>Conteúdo 18+: violência estilizada e casa noturna adulta sem nudez explícita. Há opção de apresentação atenuada em Opções.</div>
+  <div class="foot">Ato I completo + Ato II: A2-M1 Poeira Alta e A2-M2 Mina Treze (v0.9.0) • revisão de design 2.2 • valores de protótipo, não balanceados em playtest.<br>Conteúdo 18+: violência estilizada e casa noturna adulta sem nudez explícita. Há opção de apresentação atenuada em Opções.</div>
 </div></div>
 
 <div id="missions" class="layer center"><div class="card">
-  <h2><small>CAMPANHA • ATO I — NOVA AURORA, 2039</small>Missões</h2>
+  <h2><small>CAMPANHA • ATOS I E II</small>Missões</h2>
   <div id="misList"></div>
 </div></div>
 
@@ -135,6 +195,7 @@ button{font:inherit;color:inherit;cursor:pointer}
     <label>Dicas de puzzle</label><input type="checkbox" id="oH">
     <label>Apresentação atenuada (dançarinas como holograma)</label><input type="checkbox" id="oA">
     <label>Marcador de objetivo na tela</label><input type="checkbox" id="oW">
+    <label>Frases de efeito do Gael em combate</label><input type="checkbox" id="oQ2">
   </div>
   <button class="btn" data-back>Voltar</button>
 </div></div>
@@ -149,7 +210,7 @@ button{font:inherit;color:inherit;cursor:pointer}
     <dt>C</dt><dd>Agachar (alterna) • durante o sprint: slide</dd>
     <dt>F</dt><dd>Coronhada (corpo a corpo) • também quebra grades</dd>
     <dt>E</dt><dd>Interagir</dd><dt>R</dt><dd>Recarregar</dd>
-    <dt>1 / 2 / 3 / Roda</dt><dd>Trocar arma</dd><dt>Q</dt><dd>Eco Cronal (quando houver carga)</dd>
+    <dt>1 / 2 / 3 / 4 / Roda</dt><dd>Trocar arma</dd><dt>Q</dt><dd>Eco Cronal (quando houver carga)</dd>
     <dt>V</dt><dd>Trocar ombro da câmera</dd><dt>Esc</dt><dd>Pausa / fechar camada</dd>
     <dt>Gamepad</dt><dd>Analógicos mover/olhar • RT atirar • LT mirar • A saltar • B rolar (com direção) / agachar (parado) • X interagir/recarregar • Y trocar arma • LB Eco • L3 sprint • R3 coronhada • ↓ ombro • Start pausa</dd>
     <dt>Por que não Ctrl?</dt><dd>Ctrl+W fecha a aba do navegador no meio do jogo; por isso agachar fica no C.</dd>

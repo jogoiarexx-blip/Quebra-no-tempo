@@ -3,7 +3,7 @@
 export const CFG = await (await fetch(new URL('./data/game_config_v2_2.json', import.meta.url))).json();
 export const G = {
   scene: null, camera: null, renderer: null, level: null, mission: null,
-  settings: { quality: CFG.graphics.defaultPreset, fov: CFG.camera.fovDefaultDegrees, sens: 1, invertY: false, volume: 0.8, music: 0.5, shake: true, attenuate: false, difficulty: 'mercenario', hints: true, waypoint: true },
+  settings: { quality: CFG.graphics.defaultPreset, fov: CFG.camera.fovDefaultDegrees, sens: 1, invertY: false, volume: 0.8, music: 0.5, shake: true, attenuate: false, difficulty: 'mercenario', hints: true, waypoint: true, quips: true },
   S: null,            // estado da missão (serializável)
   time: 0, shake: 0,
   hooks: {},          // callbacks registrados pelo main (toast, hud, etc.)

@@ -13,7 +13,8 @@ for (const [name,path] of files) {
   const before = Object.values(bones).map(b=>[b,b.position.clone(),b.quaternion.clone()]);
   const clips = makeActorClips(gltf.scene,gltf.animations,name);
   test(name+': load-time clips are finite, normalized, planted and leave input untouched', () => {
-    assert.deepEqual(clips.map(c=>c.name),required);
+    const names=clips.map(c=>c.name);for(const r of [...required,'HitLeft','HitRight','DeathFront','DeathSpin','Sing','Throw','Draw','Minigun','Jump','Melee','Reload','Roll'])assert.ok(names.includes(r),r);
+    assert.equal(new Set(names).size,names.length,'nomes únicos');
     for(const [b,p,q] of before) { assert.ok(b.position.distanceTo(p)<1e-6); assert.deepEqual(b.quaternion.toArray(),q.toArray()); }
     for(const c of clips) {
       assert.ok(c.validate(),c.name);assert.ok(c.duration>.2);
@@ -24,7 +25,7 @@ for (const [name,path] of files) {
       }
       if(['RelaxedIdle','BartenderIdle','Talk','DanceIdle','Performance','StrafeLeft','StrafeRight'].includes(c.name)) for(const tr of c.tracks) { const n=tr.getValueSize(); for(let i=0;i<n;i++)assert.ok(Math.abs(tr.values[i]-tr.values[tr.values.length-n+i])<2e-5,c.name+' loop closes'); }
     }
-    for(const c of clips.filter(c=>!['Death','WalkBackward'].includes(c.name))) {
+    for(const c of clips.filter(c=>!['Death','WalkBackward','Aim'].includes(c.name))) {   // Aim sintetizado é uma pose fixa
       const variation = c.tracks.filter(tr=>tr.name.endsWith('.quaternion')).reduce((a,tr)=>Math.max(a,...Array.from(tr.values,(v,i)=>Math.abs(v-tr.values[i%4]))),0);
       assert.ok(variation>.012,c.name+' should move visibly');
     }

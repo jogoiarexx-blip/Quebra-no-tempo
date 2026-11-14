@@ -14,7 +14,11 @@ try{
  page.on('console',m=>{if(m.type()==='error'&&!m.text().includes('404'))errors.push(m.text());});
  page.on('requestfinished',r=>{if(r.url().endsWith('.glb'))models.add(r.url().split('/').at(-1));});
  await page.goto('http://127.0.0.1:8080/');
- await page.waitForFunction(()=>window.QNT?.ui.mode==='menu',null,{timeout:90000});
+ await page.waitForFunction(()=>window.QNT?.ui.mode==='title',null,{timeout:90000});
+ // v0.9: título "pressione qualquer tecla" → abertura (só na primeira vez) → menu. O smoke pula a abertura.
+ await page.evaluate(()=>{QNT.titleGo();});await page.waitForFunction(()=>['cinema','menu'].includes(QNT.ui.mode));
+ const cine=await page.evaluate(()=>({mode:QNT.ui.mode,shots:QNT.cinema.shots('prologue'),act2:QNT.cinema.shots('act2')}));assert.ok(cine.shots>=6&&cine.act2>=4);
+ if(cine.mode==='cinema')await page.evaluate(()=>QNT.cinema.skip());await page.waitForFunction(()=>QNT.ui.mode==='menu');
  assert.ok(models.has('porco-policial.glb')&&models.has('boate.glb'),'novos GLB devem carregar de verdade');
  const start=async id=>{const cleared=await page.evaluate(async id=>{
     QNT.input.freeLook=true;
@@ -23,7 +27,7 @@ try{
     QNT.X.toast('QA_OLD_NOTICE',60);QNT.startMission(id,null);return{notice:document.getElementById('toast').textContent,dx:QNT.input.mouseDX,dy:QNT.input.mouseDY,keys:QNT.input.keys.size,lmb:QNT.input.lmb,pitch:QNT.P.pitch};
    },id);const {notice,...neutral}=cleared;assert.notEqual(notice,'QA_OLD_NOTICE');assert.deepEqual(neutral,{dx:0,dy:0,keys:0,lmb:false,pitch:-.05});await page.waitForTimeout(750);await page.bringToFront();await page.evaluate(()=>{if(QNT.ui.stack.at(-1)==='pause')QNT.back();});};
  const shot=async name=>{await page.bringToFront();await page.evaluate(()=>{if(QNT.ui.stack.at(-1)==='pause')QNT.back();if(QNT.ui.mode==='play'&&!QNT.ui.stack.length)QNT.updateCamera(1/60);});await page.waitForTimeout(250);await page.screenshot({path:`qa/screenshots/${name}.png`});};
- for(const id of ['A1-M1','A1-M2','A1-M3','A1-M4']){
+ for(const id of ['A1-M1','A1-M2','A1-M3','A1-M4','A2-M1','A2-M2','A2-M3','A2-M4']){
   await start(id);
   const info=await page.evaluate(()=>({id:QNT.mission.id,mode:QNT.ui.mode,gate:QNT.gate.group.children.length,actions:Object.keys(QNT.P.actor.actions),programs:QNT.G.renderer.info.programs.length,details:QNT.L.sceneryDetails?.stats}));
   assert.equal(info.id,id);assert.equal(info.mode,'play');assert.ok(info.gate>=7&&info.programs>0);assert.ok(info.actions.includes('CrouchIdle')&&info.actions.includes('CrouchWalk'));
@@ -47,14 +51,14 @@ try{
    const attack=await page.evaluate(()=>{const q=QNT,e=q.enemies.list.find(e=>e.active&&e.type==='E01');e.state='fire';e.burstLeft=1;e.burstT=0;e.aimDir.set(0,0,-1);q.enemies.update(1/60);const clip=e.actor.current;e.damage(1,'torso',null);return{clip,hit:e.actor.current};});
    assert.equal(attack.clip,'Attack');assert.equal(attack.hit,'HitReaction');await shot('m2-reptiliano');
    const loot=await page.evaluate(()=>{const q=QNT,random=Math.random;Math.random=()=>0;try{q.P.hp=30;const e=q.enemies.list.find(e=>e.active&&e.type==='E01');e.damage(999,'head',null);const d=q.drops.at(-1);return{type:d.type,y:d.pos.y,death:e.actor.current,modelTilt:e.actor.model.rotation.x};}finally{Math.random=random;}});
-   assert.equal(loot.type,'medkit');assert.ok(Math.abs(loot.y-.35)<.1);assert.equal(loot.death,'Death');assert.equal(loot.modelTilt,0);
+   assert.equal(loot.type,'medkit');assert.ok(Math.abs(loot.y-.35)<.1);assert.ok(['Death','DeathFront','DeathSpin'].includes(loot.death),loot.death);assert.equal(loot.modelTilt,0);
    const cap=await page.evaluate(()=>{const q=QNT,random=Math.random;Math.random=()=>0;try{for(let i=0;i<30;i++)q.G.hooks.onEnemyKilled({type:'DRONE',body:{pos:q.P.body.pos.clone().set(0,4,28)}});const count=q.drops.length,max=Math.max(...q.drops.map(d=>d.pos.y));q.G.hooks.onEnemyKilled({type:'DRONE',body:{pos:q.P.body.pos.clone().set(0,4,18)}});return{count,max,roof:q.drops.at(-1).pos.y};}finally{Math.random=random;}});
    assert.equal(cap.count,24);assert.ok(cap.max<.5);assert.ok(Math.abs(cap.roof-4.25)<.01);await page.evaluate(()=>QNT.restartCheckpoint());assert.equal(await page.evaluate(()=>QNT.drops.length),0);
    await page.evaluate(()=>{const q=QNT;q.G.S.flags.metro_relays_on=true;q.grantSeal('qa-m2-a',q.L.pts.gate);q.grantSeal('qa-m2-b',q.L.pts.gate);q.setSimulateSaveFailure(true);q.interactables().find(i=>i.text==='Atravessar a Fenda de Saída').use();for(let i=0;i<140;i++)q.tick(1/60);});
    assert.equal(await page.evaluate(()=>QNT.store.campaign.unlocked.includes('A1-M3')),false,'falha de save não libera M3');
    await page.evaluate(()=>{const q=QNT;q.setSimulateSaveFailure(false);q.interactables().find(i=>i.text==='Atravessar a Fenda de Saída').use();for(let i=0;i<140;i++)q.tick(1/60);});
    assert.equal(await page.evaluate(()=>QNT.store.campaign.unlocked.includes('A1-M3')),true);
-   await page.locator('#bNext').click();await page.waitForFunction(()=>QNT.mission.id==='A1-M3'&&QNT.ui.mode==='play');
+   await page.locator('#bNext').click();await page.waitForFunction(()=>QNT.loading.waiting,null,{timeout:60000});await page.keyboard.press('Enter');await page.waitForFunction(()=>QNT.mission.id==='A1-M3'&&QNT.ui.mode==='play');
    console.log('Conversa, combate, animações, loot, save e transição M2→M3 OK');
   }
   if(id==='A1-M3'){
@@ -64,18 +68,18 @@ try{
     const q=QNT,use=text=>{const i=q.interactables().find(i=>i.text.startsWith(text));if(!i)throw Error('interação ausente '+text);i.use();};
     use('Fechar válvula de resfriamento 1');use('Fechar válvula de resfriamento 2');const first=q.G.S.seals.length,door=q.L.doors.turbine_door.col.enabled;
     q.enemies.clear();q.enemies.spawnGroup('qa-old-sniper',{units:[{type:'E02',x:9,y:0,z:41,role:'hold',path:[]}]});q.P.body.pos.set(0,.01,103);use('Acionar parada manual');
-    const defenders=q.enemies.aliveInGroup('eg31');const old=q.enemies.list.find(e=>e.active&&e.group==='qa-old-sniper');old.lostT=15.2;old.los=false;old.losT=1;q.enemies.update(.1);q.enemies.update(.01);if(q.enemies.list.filter(e=>e.active&&e.alive&&e.group==='eg31').length!==3)throw Error('sniper antigo bloqueou reforços');for(const e of q.enemies.list)if(e.active&&e.alive)e.damage(999,'head',null);q.tick(1/60);
+    const defenders=q.enemies.aliveInGroup('eg31');const old=q.enemies.list.find(e=>e.active&&e.group==='qa-old-sniper');old.lostT=15.2;old.los=false;old.losT=1;q.enemies.update(.1);q.enemies.update(.01);if(q.enemies.list.filter(e=>e.active&&e.alive&&e.group==='eg31').length!==4)throw Error('sniper antigo bloqueou reforços');for(const e of q.enemies.list)if(e.active&&e.alive)e.damage(999,'head',null);q.tick(1/60);
     q.P.body.pos.set(-15.5,4.01,107.5);use('Copiar backup');q.P.body.pos.set(-15,4.01,116);q.tick(1/60);q.restartCheckpoint();
     const saved=q.G.S.checkpointId,restored=q.G.S.flags.backup_secured,earlyExit=q.gateStable();
     q.P.hp=100;q.P.iframe=999;q.P.body.pos.set(0,8.01,175);q.tick(1/60);const roof=q.enemies.aliveInGroup('eg33');for(const e of q.enemies.list)if(e.active&&e.alive)e.damage(999,'head',null);q.tick(1/60);
     q.P.body.pos.set(0,8.01,182);use('Cortar descarga');
     return{first,door,defenders,saved,restored,earlyExit,roof,seals:q.G.S.seals.length,ready:q.gateStable()};
    });
-   assert.equal(result.first,1);assert.equal(result.door,false);assert.equal(result.defenders,3);assert.equal(result.saved,'cp02');assert.ok(result.restored);assert.equal(result.earlyExit,false);assert.equal(result.roof,3);assert.equal(result.seals,2);assert.ok(result.ready);
+   assert.equal(result.first,1);assert.equal(result.door,false);assert.equal(result.defenders,4);assert.equal(result.saved,'cp02');assert.ok(result.restored);assert.equal(result.earlyExit,false);assert.equal(result.roof,3);assert.equal(result.seals,2);assert.ok(result.ready);
    await page.evaluate(()=>{QNT.P.body.pos.set(-4,8.01,177);QNT.P.yaw=.45;QNT.P.pitch=.07;});await shot('m3-usina-terraco');
    await page.evaluate(()=>{const q=QNT;q.interactables().find(i=>i.text==='Atravessar a Fenda de Saída').use();for(let i=0;i<140;i++)q.tick(1/60);});
    assert.equal(await page.evaluate(()=>QNT.ui.stack.at(-1)),'results');assert.ok(await page.evaluate(()=>QNT.store.campaign.completed['A1-M3']));
-   assert.ok(await page.evaluate(()=>QNT.store.campaign.unlocked.includes('A1-M4')));await page.locator('#bNext').click();await page.waitForFunction(()=>QNT.mission.id==='A1-M4'&&QNT.ui.mode==='play');
+   assert.ok(await page.evaluate(()=>QNT.store.campaign.unlocked.includes('A1-M4')));await page.locator('#bNext').click();await page.waitForFunction(()=>QNT.loading.waiting,null,{timeout:60000});await page.keyboard.press('Enter');await page.waitForFunction(()=>QNT.mission.id==='A1-M4'&&QNT.ui.mode==='play');
    console.log('Usina: rota de objetivos, defesa, backup, checkpoint e conclusão OK',result);
   }
   if(id==='A1-M4'){

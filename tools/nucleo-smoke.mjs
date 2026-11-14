@@ -37,6 +37,6 @@ export async function verifyNucleo(page,shot){
   const q=QNT,exit=()=>{q.interactables().find(i=>i.text==='Atravessar a Fenda de Saída').use();for(let i=0;i<140;i++)q.tick(1/60);};
   q.setSimulateSaveFailure(true);exit();const blocked=!q.store.campaign.completed['A1-M4']&&!q.store.campaign.flags.act1_complete;q.setSimulateSaveFailure(false);exit();return{blocked,complete:!!q.store.campaign.completed['A1-M4'],act1:q.store.campaign.flags.act1_complete,results:q.ui.stack.at(-1),nextHidden:document.getElementById('bNext').style.display==='none'};
  });
- assert.deepEqual(finish,{blocked:true,complete:true,act1:true,results:'results',nextHidden:true});
+ assert.deepEqual(finish,{blocked:true,complete:true,act1:true,results:'results',nextHidden:false});   // v0.9: o Ato I agora leva ao Ato II (A2-M1)
  console.log('Núcleo: arsenal/ciclo, foguete real, blindagem, 3 etapas, checkpoint, auxiliares e conclusão transacional OK',victory);
 }

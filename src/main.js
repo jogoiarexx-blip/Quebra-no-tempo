@@ -1,4 +1,4 @@
-// QUEBRA NO TEMPO — motor do slice (A1-M1 Rua Quebrada → A1-M2 Noite de Neon).
+// QUEBRA NO TEMPO — motor da campanha (Ato I completo + Ato II: Poeira Alta e Mina Treze).
 // Laço fixo de 60 Hz, máquina única de interface, missões como módulos guiados por flags (GDD §9.3 / §28 / §46).
 import * as THREE from 'three';
 import { G, CFG, DIFF } from './state.js';
@@ -11,18 +11,28 @@ import { loadCharacters } from './characters.js';
 import { initTouch } from './touch.js';
 import { NPC } from './npcs.js';
 import { P, createPlayer, resetPlayer, updatePlayer, updateCamera, giveWeapon, switchWeapon, cycleWeapon, setHolster, unlockEco, damagePlayer, WEAPONS, AMMO_CAP } from './player.js';
+import { createCinema } from './cinema.js';
+import { createLoading } from './loading.js';
+import { createQuips } from './quips.js';
+import { buildProps } from './fun-props.js';
 import { enemies, createEnemyPools, initEnemyList } from './enemies.js';
-import { initFx, updateFx, sparks, flash, shake, makeSeal, makeGate, makePortal } from './fx.js';
+import { initFx, updateFx, sparks, flash, shake, tracer, makeSeal, makeGate, makePortal } from './fx.js';
 import { audio, initAudio, setVolumes, setPaused, setIntensity, setTrack, setMusic, setAlarm, sfx } from './audio.js';
 import { loadAll, commit, SAVE_SCHEMA, CONTENT_VERSION, setSimulateSaveFailure } from './save.js';
 import a1m1 from './missions/a1m1.js';
 import a1m2 from './missions/a1m2.js';
 import a1m3 from './missions/a1m3.js';
 import a1m4 from './missions/a1m4.js';
+import a2m1 from './missions/a2m1.js';
+import a2m2 from './missions/a2m2.js';
+import a2m3 from './missions/a2m3.js';
+import a2m4 from './missions/a2m4.js';
 import { improveMissionScenery } from './scenery-details.js';
 
-const MISSIONS = { 'A1-M1': a1m1, 'A1-M2': a1m2, 'A1-M3': a1m3, 'A1-M4': a1m4 };
-const ORDER = ['A1-M1', 'A1-M2', 'A1-M3', 'A1-M4'];
+const MISSIONS = { 'A1-M1': a1m1, 'A1-M2': a1m2, 'A1-M3': a1m3, 'A1-M4': a1m4, 'A2-M1': a2m1, 'A2-M2': a2m2, 'A2-M3': a2m3, 'A2-M4': a2m4 };
+const ORDER = ['A1-M1', 'A1-M2', 'A1-M3', 'A1-M4', 'A2-M1', 'A2-M2', 'A2-M3', 'A2-M4'];
+const ACTS = [['ATO I — NOVA AURORA, 2039', ['A1-M1', 'A1-M2', 'A1-M3', 'A1-M4']], ['ATO II — VALE DE MERCÚRIO, 1888', ['A2-M1', 'A2-M2', 'A2-M3', 'A2-M4']]];
+a1m4.next = 'A2-M1';
 const $ = (id) => document.getElementById(id);
 const MX = CFG.missionExit;
 let store = loadAll();
@@ -33,11 +43,12 @@ const persistSettings = () => { store.settings = { ...G.settings }; commit(store
 // ------------------------------------------------------------------ interface (máquina única)
 const ui = { mode: 'boot', stack: [] };
 let touchControls;
-const LAYERS = ['boot', 'menu', 'missions', 'newgame', 'options', 'controls', 'pause', 'doc', 'dead', 'results'];
+const LAYERS = ['boot', 'title', 'menu', 'missions', 'newgame', 'options', 'controls', 'pause', 'doc', 'dead', 'results'];
 function renderUi() {
   const top = ui.stack[ui.stack.length - 1];
   for (const id of LAYERS) $(id).classList.toggle('on', id === top || (!top && id === ui.mode));
   $('hud').classList.toggle('on', ui.mode === 'play' && !top);
+  document.body.classList.toggle('cinematic', ui.mode === 'cinema' || ui.mode === 'loading' || ui.mode === 'title');
   touchControls?.sync(ui.mode === 'play' && !top);
   setPaused(ui.mode === 'play' && ui.stack.length > 0);
 }
@@ -65,6 +76,8 @@ function updateTalk(dt) {
   e.innerHTML = `<b>${n.who}</b>${n.text}`; e.style.display = 'block'; talk.t = n.dur; sfx.talk();
 }
 
+const quips = createQuips(say, { enabled: () => G.settings.quips !== false, now: () => G.time });
+
 // ------------------------------------------------------------------ cena
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -84,8 +97,12 @@ function applyQuality() {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
 }
 addEventListener('resize', applyQuality);
+let cineShake = 0;
+const cinema = createCinema({ camera, sfx, setTrack, shake: (v) => { cineShake = Math.max(cineShake, v); }, flash, sparks, actor: () => P.actor,
+  doorKick: (k) => { const d = L?.doors?.door_garage; if (d) d.mesh.position.z = Math.sin(k * 40) * .07 * k; } });
+const loading = createLoading({ sfx });
 
-let L = null, mission = null, gate, portal, sealFx, pickupMeshes = {}, drops = [], doorAnim = {};
+let L = null, mission = null, gate, portal, sealFx, pickupMeshes = {}, drops = [], doorAnim = {}, props = { list: [], frame() {} };
 function makePickupMesh(type) {
   const mesh = createPickupMesh(type);
   (L ? L.root : scene).add(mesh);
@@ -132,7 +149,8 @@ function refreshPickups() { for (const pk of L.pickups) pickupMeshes[pk.id].visi
 const X = {
   get S() { return G.S; }, get L() { return L; }, P, enemies, sfx, camera, settings: G.settings,
   get activeGroups() { return activeGroups; }, get portal() { return portal; }, get playing() { return ui.mode === 'play'; }, get campaign() { return store.campaign; },
-  fx: { sparks, flash, shake },
+  fx: { sparks, flash, shake, tracer },
+  firePressed: () => hit('Mouse0') || !!(input.pad && input.pad.hit.rt),
   say, toast, after, once, setDoor, grantSeal, saveCheckpoint, gateStable, refreshPickups, giveWeapon, switchWeapon, cycleWeapon, setHolster, damagePlayer,
   hasTimers: () => timers.length > 0,
   openDoc(d) { $('docK').textContent = d.k; $('docT').textContent = d.t; $('docB').textContent = d.b; push('doc'); },
@@ -145,19 +163,26 @@ const X = {
   fallRecover(pos) { const p = P.body.pos; p.copy(pos); P.body.vel.set(0, 0, 0); P.hp = Math.max(1, P.hp - 10); G.S.stats.dmgTaken += 10; sfx.hurt(); flash(p.clone().setY(p.y + 1), 1, 0.3, 0x35e6ff); toast('Queda • reposicionado na última borda'); P.inputLock = 0.25; },
 };
 
+// Carregamento em etapas reais (a tela de carregamento mostra cada uma); loadMission executa tudo de uma vez.
+function missionSteps(id) {
+  return [
+    ['MAPEANDO A FENDA TEMPORAL', () => { enemies.clear(); if (L) { L.dispose(); } L = null; disposePickupAssets(); pickupMeshes = {}; drops = []; doorAnim = {}; mission = MISSIONS[id]; G.mission = mission; }],
+    ['SOLDANDO O CENÁRIO', () => { L = mission.build(scene, X); G.level = L; L.npcs = L.npcs || []; }],
+    ['PENDURANDO OS DETALHES', () => { improveMissionScenery(L, mission.id); props = buildProps(L, mission.id, store.campaign); }],
+    ['CARREGANDO CARTUCHOS', () => { for (const pk of L.pickups) { const m = makePickupMesh(pk.type); m.position.copy(pk.pos); pickupMeshes[pk.id] = m; } }],
+    ['AQUECENDO SHADERS', () => finishLoad()],
+  ];
+}
 function loadMission(id) {
   if (mission && mission.id === id && L) return;
-  enemies.clear();
-  if (L) { L.dispose(); }
-  disposePickupAssets();
-  pickupMeshes = {}; drops = []; doorAnim = {};
-  mission = MISSIONS[id]; G.mission = mission;
-  L = mission.build(scene, X); improveMissionScenery(L,mission.id); G.level = L; L.npcs = L.npcs || [];
-  for (const pk of L.pickups) { const m = makePickupMesh(pk.type); m.position.copy(pk.pos); pickupMeshes[pk.id] = m; }
+  for (const [, fn] of missionSteps(id)) fn();
+}
+function finishLoad() {
   gate.group.position.copy(L.pts.gate); gate.group.rotation.y = L.pts.gateYaw || 0;
   if (L.pts.portal) portal.group.position.copy(L.pts.portal);
   scene.fog.color.set(L.fogColor ?? 0x0d1220); scene.fog.density = L.fogDensity ?? 0.011;
   hemi.intensity = L.hemi ?? 1.5; moon.intensity = L.moon ?? 1.2;
+  moon.color.set(L.sunColor ?? 0xb4c8ff); hemi.color.set(L.hemiSky ?? 0x9db4e6); hemi.groundColor.set(L.hemiGround ?? 0x242630);
   renderer.compile(scene, camera);
 }
 function applyWorldState() {
@@ -195,6 +220,7 @@ function interactables() {
   const list = [];
   const add = (pos, text, use) => list.push({ pos, text, use });
   mission.interactables(X, add);
+  for (const pr of props.list) add(pr.pos, pr.text, () => pr.use(X, propApi));
   add(L.pts.gate.clone().setY(L.pts.gate.y + 1.2), gateStable() ? 'Atravessar a Fenda de Saída' : 'Fenda de Saída instável', () => {
     if (!gateStable()) { toast(mission.gateHint(X)); sfx.empty(); return; }
     if (exitSeq || P.dead) return;                      // evento idempotente
@@ -202,6 +228,11 @@ function interactables() {
   });
   return list;
 }
+const propApi = {
+  heal(n) { const g = Math.max(0, Math.min(n, CFG.player.maxHealth - P.hp)); P.hp += g; toast(g ? `+${Math.ceil(g)} VIDA` : 'Vida já está cheia — guardei pra depois', 1.4); sfx.pickup(); quips.onHeal(); },
+  armor(n) { const g = Math.max(0, Math.min(n, CFG.player.maxArmor - P.armor)); P.armor += g; toast(`+${Math.ceil(g)} ARMADURA`, 1.4); sfx.pickup(); },
+  sfx(id) { if (id === 'horse') sfx.neigh(); else if (id === 'tv') sfx.static(); else sfx.click(); },
+};
 function updateInteraction() {
   const p = P.body.pos; let best = null, bd = 2.5;
   for (const it of interactables()) { const d = Math.hypot(it.pos.x - p.x, (it.pos.y - (p.y + 1)) * 0.6, it.pos.z - p.z); if (d < bd) { bd = d; best = it; } }
@@ -216,6 +247,7 @@ G.hooks.toast = toast;
 G.hooks.onDeath = () => { deathT = 0; G.S.stats.deaths++; };
 G.hooks.hitMarker = (head, kill) => { const e = $('hitm'); e.style.color = kill ? '#ff3048' : head ? '#ffb030' : '#fff'; e.style.opacity = 1; e.style.transition = 'none'; requestAnimationFrame(() => { e.style.transition = 'opacity .25s'; e.style.opacity = 0; }); };
 G.hooks.onEnemyKilled = (e) => {
+  quips.onKill(e.type);
   const drop = chooseEnemyDrop(e.type, P, resourceLimits());
   if (!drop) return;
   const pos = e.body.pos.clone();
@@ -233,11 +265,12 @@ G.hooks.onShootCollider = (c, dmg, point) => {
 function explodeBarrel(b) { b.alive = false; b.mesh.visible = false; b.col.enabled = false; G.S.destroyed.push(b.id); enemies.explode(b.pos, mission.barrelRadius ? mission.barrelRadius(b.id) : 5.5, 130); }
 
 function collect(type, amount) {
-  if (['ammo9', 'shells', 'rockets', 'medkit', 'armor'].includes(type)) {
+  if (['ammo9', 'shells', 'rockets', 'rifle', 'medkit', 'armor'].includes(type)) {
     const gain = applyResourcePickup(P, type, amount, resourceLimits());
     if (!gain) return false;
-    toast(`+${Math.ceil(gain)} ${PICKUPS[type].label}`, 1.3);
+    toast(`+${Math.ceil(gain)} ${PICKUPS[type].label}`, 1.3); if (type === 'medkit' && P.hp < 60) quips.onHeal();
   }
+  else if (type === 'weapon_ferrovia') { giveWeapon('ferrovia'); P.ammo.rifle = Math.min(AMMO_CAP.rifle, (P.ammo.rifle || 0) + 16); toast('FERROVIA ADQUIRIDA • tecla 4', 2.6); say('GAEL', 'Rifle de alavanca. Cada tiro com cara de ponto final.'); }
   else if (type === 'pecas') { G.S.pecas += amount; toast(`+ ${amount} PEÇAS CRONAIS`, 1.6); }
   else if (type === 'weapon_trovao') { giveWeapon('trovao_duplo'); P.ammo.shells = Math.min(AMMO_CAP.shells, P.ammo.shells + 4); toast('TROVÃO DUPLO ADQUIRIDA • tecla 2', 2.6); say('GAEL', 'Dois canos, zero sutileza. Agora sim a noite ficou educada.'); }
   else return false;
@@ -247,7 +280,7 @@ function collect(type, amount) {
 // ------------------------------------------------------------------ simulação (60 Hz)
 function tick(dt) {
   const S = G.S, p = P.body.pos;
-  G.time += dt; S.stats.time += dt;
+  G.time += dt; S.stats.time += dt; quips.tick(dt);
   for (let i = timers.length - 1; i >= 0; i--) { timers[i].t -= dt; if (timers[i].t <= 0) { const fn = timers[i].fn; timers.splice(i, 1); fn(); } }
   if (exitSeq) { runExit(dt); P.body.vel.set(0, 0, 0); }
   updatePlayer(dt, enemies);
@@ -305,17 +338,54 @@ function restartCheckpoint() {
   const snap = store.checkpoint; if (!snap || snap.missionId !== mission.id) { startMission(mission.id, null); return; }
   startMission(snap.missionId, snap); G.S.stats.deaths = deaths; G.S.stats.time = time;
 }
-function toMenu() { enemies.clear(); releaseLock(); setAlarm(false); setMusic(true); setTrack(0); ui.mode = 'menu'; ui.stack = []; refreshMenu(); renderUi(); setIntensity(0); }
+function toMenu() { enemies.clear(); releaseLock(); setAlarm(false); setMusic(true); setTrack(9); ui.mode = 'menu'; ui.stack = []; refreshMenu(); renderUi(); setIntensity(0); }
+// ------------------------------------------------------------------ título, cenas e carregamento (estilo pôster de ação dos anos 90)
+let loadingBusy = false, prologueThisSession = false;
+const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
+async function launchMission(id, snap) {
+  const m = MISSIONS[id]; if (!m || loadingBusy) return;
+  loadingBusy = true; releaseLock(); enemies.clear(); toast('', 0); setAlarm(false); setIntensity(0);
+  ui.mode = 'loading'; ui.stack = []; renderUi(); loading.show(m);
+  await nextFrame(); await nextFrame();
+  const t0 = performance.now(), steps = (mission && mission.id === id && L) ? [['MAPA JÁ CARREGADO', () => {}], ['CONFERINDO O ARSENAL', () => {}]] : missionSteps(id);
+  try {
+    for (let i = 0; i < steps.length; i++) { steps[i][1](); loading.step(steps[i][0], (i + 1) / steps.length); await nextFrame(); }
+  } catch (e) { console.error(e); loadingBusy = false; loading.hide(); toMenu(); toast('Falha ao carregar a missão: ' + e.message, 4); return; }
+  while (performance.now() - t0 < 1300) await nextFrame();     // tempo mínimo para ler o briefing
+  loadingBusy = false;
+  G.S = newS(mission); applyWorldState(); resetPlayer({ ...L.pts.spawn });
+  loading.ready(() => {
+    loading.hide();
+    if (id === 'A2-M1' && !snap && !store.campaign.flags.act2_intro_seen) { store.campaign.flags.act2_intro_seen = true; commit(store); playCinema('act2', () => startMission(id, snap)); }
+    else startMission(id, snap);
+  });
+}
+function playCinema(name, done) {
+  releaseLock(); ui.mode = 'cinema'; ui.stack = []; renderUi(); setAlarm(false); setIntensity(0);
+  cinema.play(name, () => { cineShake = 0; done(); });
+}
+function playPrologue(done) {
+  if (!mission || mission.id !== 'A1-M1' || !L) loadMission('A1-M1');
+  G.S = newS(mission); applyWorldState(); resetPlayer({ ...L.pts.spawn });
+  prologueThisSession = true; store.campaign.flags.intro_seen = true; commit(store);
+  playCinema('prologue', done);
+}
+function goMenu() { setTrack(9); setMusic(true); ui.mode = 'menu'; ui.stack = []; refreshMenu(); renderUi(); }
+function titleGo() {
+  if (ui.mode !== 'title') return;
+  initAudio(); sfx.stinger(); setTrack(9);
+  if (!store.campaign.flags.intro_seen) playPrologue(goMenu); else goMenu();
+}
 function nextPlayable() { return ORDER.find((id) => store.campaign.unlocked.includes(id) && !store.campaign.completed[id]) || null; }
 function refreshMenu() {
   store = loadAll(); store.campaign.flags = store.campaign.flags || {};
   const cp = store.checkpoint, np = nextPlayable();
   $('bCont').disabled = !cp && !np;
-  $('contInfo').textContent = cp ? `${cp.missionId} • ${cp.checkpointId.toUpperCase()} • ${DIFF[cp.difficulty]?.name || ''}` : np ? `${np} — ${MISSIONS[np].name} (início)` : (store.campaign.completed['A1-M4'] ? 'Ato I concluído — quatro missões disponíveis para repetir' : 'Nenhum checkpoint salvo');
+  $('contInfo').textContent = cp ? `${cp.missionId} • ${cp.checkpointId.toUpperCase()} • ${DIFF[cp.difficulty]?.name || ''}` : np ? `${np} — ${MISSIONS[np].name} (início)` : (store.campaign.completed['A2-M4'] ? 'Ato II concluído — oito missões disponíveis para repetir' : store.campaign.completed['A2-M3'] ? 'Trem de Ferro concluído — Forte Meia-Noite liberado' : 'Nenhum checkpoint salvo');
   $('bMis').disabled = store.campaign.unlocked.length < 1;
-  $('misList').innerHTML = ORDER.map((id) => { const m = MISSIONS[id], un = store.campaign.unlocked.includes(id), dn = store.campaign.completed[id];
-    return `<button class="btn" data-mission="${id}" ${un ? '' : 'disabled'}>${id} — ${m.name}<small>${dn ? `Concluída • melhor tempo ${Math.floor(dn.time / 60)}:${String(Math.floor(dn.time % 60)).padStart(2, '0')} • selos ${dn.seals}/${m.sealsAvailable}` : un ? 'Disponível' : 'Bloqueada — conclua a missão anterior'}</small></button>`; }).join('') + `<button class="btn" data-back>Voltar</button>`;
-  $('misList').querySelectorAll('[data-mission]').forEach((b) => b.addEventListener('click', () => { initAudio(); sfx.ui(); startMission(b.dataset.mission, null); }));
+  $('misList').innerHTML = ACTS.map(([act, ids]) => `<div class="act">${act}</div>` + ids.map((id) => { const m = MISSIONS[id], un = store.campaign.unlocked.includes(id), dn = store.campaign.completed[id];
+    return `<button class="btn" data-mission="${id}" ${un ? '' : 'disabled'}>${id} — ${m.name}<small>${dn ? `Concluída • melhor tempo ${Math.floor(dn.time / 60)}:${String(Math.floor(dn.time % 60)).padStart(2, '0')} • selos ${dn.seals}/${m.sealsAvailable}` : un ? 'Disponível' : 'Bloqueada — conclua a missão anterior'}</small></button>`; }).join('')).join('') + `<button class="btn" data-back>Voltar</button>`;
+  $('misList').querySelectorAll('[data-mission]').forEach((b) => b.addEventListener('click', () => { initAudio(); sfx.ui(); launchMission(b.dataset.mission, null); }));
   $('misList').querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => { sfx.ui(); pop(); }));
 }
 
@@ -361,6 +431,17 @@ function updateHud() {
 }
 function frameUpdate(dt, sim) {
   const t = performance.now() / 1000;
+  if (ui.mode === 'cinema') {
+    const pad = input.pad && (input.pad.hit.a || input.pad.hit.start || input.pad.hit.bb);
+    const three = cinema.update(dt, pad);
+    if (!three || !L) return false;
+    if (cineShake > 0) { cineShake = Math.max(0, cineShake - dt * 1.6); camera.position.x += (Math.random() - .5) * cineShake * .25; camera.position.y += (Math.random() - .5) * cineShake * .25; }
+    for (const n of L.npcs) n.update(dt, camera.position);
+    updateLights(L, camera.position, dt); if (L.rain) L.rain.update(dt, camera.position, mission.outdoor(camera.position)); if (L.sky) L.sky.position.copy(camera.position);
+    if (mission.frame) mission.frame(X, dt, t, false); props.frame(t, dt, null); updateFx(dt);
+    return true;
+  }
+  if (ui.mode === 'loading' || !L) return false;
   for (const n in doorAnim) { const d = L.doors[n], ty = doorAnim[n] ? d.openH || 3.2 : 0; if (Math.abs(d.mesh.position.y - ty) > 0.01) d.mesh.position.y += Math.sign(ty - d.mesh.position.y) * Math.min(Math.abs(ty - d.mesh.position.y), dt * 3.2); }
   if (mission.frame) mission.frame(X, dt, t, sim);
   G.playerPos = P.body.pos;
@@ -368,7 +449,7 @@ function frameUpdate(dt, sim) {
   for (const pk of L.pickups) { const m = pickupMeshes[pk.id]; if (m.visible) { m.position.y = pk.pos.y + Math.sin(t * 2.5 + pk.pos.x) * 0.06; m.rotation.y += dt * 1.2; } }
   for (const d of drops) { d.mesh.rotation.y += dt * 1.2; d.mesh.position.y = d.pos.y + Math.sin(t * 2.5 + d.pos.x) * .06; }
   if (sealFx.life > 0) { sealFx.life -= dt; sealFx.group.position.y += dt * 0.5; sealFx.group.scale.setScalar(Math.min(1, sealFx.life)); if (sealFx.life <= 0) sealFx.group.visible = false; }
-  gate.stable = ui.mode === 'play' && gateStable();
+  gate.stable = ui.mode === 'play' && gateStable(); gate.group.visible = !mission.gateVisible || mission.gateVisible(X);
   if (ui.mode === 'play') {
     P.actor.update(sim ? dt : 0); enemies.frame(sim ? dt : 0); if (sim) updateCamera(dt);
     updateLights(L, P.body.pos, dt); moon.target.position.copy(P.body.pos); moon.position.set(P.body.pos.x + 30, P.body.pos.y + 60, P.body.pos.z - 25);
@@ -380,7 +461,9 @@ function frameUpdate(dt, sim) {
     if (L.rain) L.rain.update(dt, camera.position, true);
   }
   if (L.sky) L.sky.position.copy(camera.position);
+  props.frame(t, dt, ui.mode === 'play' ? P.body.pos : null);
   updateFx(sim || ui.mode !== 'play' ? dt : 0); updateTalk(sim || ui.mode !== 'play' ? dt : 0);
+  return true;
 }
 let last = performance.now(), acc = 0;
 function frame(now) {
@@ -388,34 +471,36 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, CFG.simulation.maxDeltaSecondsAfterTabReturn); last = now;
   if (document.hidden) { last = now; acc = 0; return; }
   pollPad();
-  if (hit('Escape') || (input.pad && (input.pad.hit.start || (input.pad.hit.bb && ui.stack.length)))) back();
+  if (ui.mode === 'title' && input.pad && (input.pad.hit.a || input.pad.hit.start)) titleGo();
+  if (ui.mode === 'loading' && loading.waiting && input.pad && (input.pad.hit.a || input.pad.hit.start || input.pad.hit.x)) loading.padGo();
+  if (ui.mode === 'play' || ui.mode === 'menu') if (hit('Escape') || (input.pad && (input.pad.hit.start || (input.pad.hit.bb && ui.stack.length)))) back();
   if (ui.stack[ui.stack.length - 1] === 'doc' && hit('KeyE')) pop();
   const sim = simActive();
   if (sim) { acc += dt; let n = 0; while (acc >= 1 / CFG.simulation.fixedHz && n < 6) { tick(1 / CFG.simulation.fixedHz); acc -= 1 / CFG.simulation.fixedHz; n++; endFrame(); } }
   else { acc = 0; endFrame(); }
-  frameUpdate(dt, sim);
-  renderer.render(scene, camera);
+  if (frameUpdate(dt, sim)) renderer.render(scene, camera);
 }
 
 // ------------------------------------------------------------------ inicialização
 function bindUi() {
   const click = (id, fn) => $(id).addEventListener('click', () => { initAudio(); sfx.ui(); fn(); });
   click('bNew', () => push('newgame')); click('bOpt', () => { fillOptions(); push('options'); }); click('bCtl', () => push('controls')); click('bMis', () => { refreshMenu(); push('missions'); });
-  click('bCont', () => { if (store.checkpoint) startMission(store.checkpoint.missionId || 'A1-M1', store.checkpoint); else { const np = nextPlayable(); if (np) startMission(np, null); } });
+  click('bCont', () => { if (store.checkpoint) launchMission(store.checkpoint.missionId || 'A1-M1', store.checkpoint); else { const np = nextPlayable(); if (np) launchMission(np, null); } });
+  click('bIntro', () => playPrologue(goMenu));
   document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => { sfx.ui(); pop(); }));
-  document.querySelectorAll('[data-diff]').forEach((b) => b.addEventListener('click', () => { initAudio(); G.settings.difficulty = b.dataset.diff; persistSettings(); startMission('A1-M1', null); }));
+  document.querySelectorAll('[data-diff]').forEach((b) => b.addEventListener('click', () => { initAudio(); G.settings.difficulty = b.dataset.diff; persistSettings(); if (prologueThisSession) launchMission('A1-M1', null); else playPrologue(() => launchMission('A1-M1', null)); }));
   click('bResume', () => { pop(); requestLock(); }); click('bRestart', restartCheckpoint); click('bPOpt', () => { fillOptions(); push('options'); }); click('bPCtl', () => push('controls')); click('bQuit', toMenu);
   click('bDocClose', pop); click('bRetry', restartCheckpoint); click('bDeadMenu', toMenu);
-  click('bReplay', () => startMission(mission.id, null)); click('bResMenu', toMenu); click('bNext', () => { if (mission.next) startMission(mission.next, null); });
+  click('bReplay', () => startMission(mission.id, null)); click('bResMenu', toMenu); click('bNext', () => { if (mission.next && MISSIONS[mission.next]) launchMission(mission.next, null); });
   canvas.addEventListener('mousedown', () => { initAudio(); if (simActive() && !input.locked) requestLock(); });
   const o = (id, key, fmt, apply) => { const e = $(id); e.addEventListener('input', () => { G.settings[key] = e.type === 'checkbox' ? e.checked : e.tagName === 'SELECT' ? e.value : parseFloat(e.value); if (fmt) $(id + 'v').textContent = fmt(G.settings[key]); if (apply) apply(); }); };
   o('oQ', 'quality', null, applyQuality); o('oF', 'fov', (v) => v + '°'); o('oS', 'sens', (v) => v.toFixed(2)); o('oI', 'invertY');
   o('oV', 'volume', (v) => Math.round(v * 100), () => { audio.volume = G.settings.volume; setVolumes(); }); o('oM', 'music', (v) => Math.round(v * 100), () => { audio.music = G.settings.music; setVolumes(); });
-  o('oK', 'shake'); o('oH', 'hints'); o('oA', 'attenuate'); o('oW', 'waypoint');
+  o('oK', 'shake'); o('oH', 'hints'); o('oA', 'attenuate'); o('oW', 'waypoint'); o('oQ2', 'quips');
 }
 function fillOptions() {
   const s = G.settings; $('oQ').value = s.quality; $('oF').value = s.fov; $('oFv').textContent = s.fov + '°'; $('oS').value = s.sens; $('oSv').textContent = s.sens.toFixed(2); $('oI').checked = s.invertY;
-  $('oV').value = s.volume; $('oVv').textContent = Math.round(s.volume * 100); $('oM').value = s.music; $('oMv').textContent = Math.round(s.music * 100); $('oK').checked = s.shake; $('oH').checked = s.hints; $('oA').checked = s.attenuate; $('oW').checked = s.waypoint !== false;
+  $('oV').value = s.volume; $('oVv').textContent = Math.round(s.volume * 100); $('oM').value = s.music; $('oMv').textContent = Math.round(s.music * 100); $('oK').checked = s.shake; $('oH').checked = s.hints; $('oA').checked = s.attenuate; $('oW').checked = s.waypoint !== false; $('oQ2').checked = s.quips !== false;
 }
 async function boot() {
   applyQuality(); audio.volume = G.settings.volume; audio.music = G.settings.music;
@@ -434,9 +519,11 @@ async function boot() {
   document.addEventListener('visibilitychange', () => { if (document.hidden && simActive()) back(); });
   $('bFullscreen').addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen?.(); else document.documentElement.requestFullscreen?.().catch(() => {}); });
   bindUi(); $('bootP').style.width = '100%';
-  ui.mode = 'menu'; refreshMenu(); renderUi();
+  ui.mode = 'title'; refreshMenu(); renderUi();
+  const go = (e) => { if (ui.mode !== 'title') return; if (e.type === 'keydown' && ['Tab', 'AltLeft', 'MetaLeft'].includes(e.code)) return; titleGo(); };
+  addEventListener('keydown', go); $('title').addEventListener('pointerdown', go);
   requestAnimationFrame(frame);
 }
 // ganchos de teste/QA (console): window.QNT
-window.QNT = { G, P, updateCamera, enemies, ui, input, X, restartCheckpoint, get L() { return L; }, get mission() { return mission; }, get gate() { return gate; }, get store() { return store; }, startMission, loadMission, saveCheckpoint, grantSeal, gateStable, setSimulateSaveFailure, tick, back, objective: () => mission.objective(X), interactables, collect, get drops() { return drops; }, get pickupMeshes() { return pickupMeshes; } };
+window.QNT = { cinema, loading, launchMission, playCinema, playPrologue, titleGo, goMenu, get props() { return props; }, quips, G, P, updateCamera, enemies, ui, input, X, restartCheckpoint, get L() { return L; }, get mission() { return mission; }, get gate() { return gate; }, get store() { return store; }, startMission, loadMission, saveCheckpoint, grantSeal, gateStable, setSimulateSaveFailure, tick, back, objective: () => mission.objective(X), interactables, collect, get drops() { return drops; }, get pickupMeshes() { return pickupMeshes; } };
 boot().catch((e) => { $('bootT').textContent = 'ERRO AO CARREGAR: ' + e.message; console.error(e); });
